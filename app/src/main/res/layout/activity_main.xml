@@ -38,6 +38,7 @@
             android:layout_height="wrap_content"
             android:columnCount="2">
 
+            <!-- AVG PING -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -45,28 +46,16 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AVG PING"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvAvg"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ms"
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="AVG PING" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvAvg" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
+            <!-- MAX -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -74,28 +63,16 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="BEST PING"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvBest"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ms"
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="MAX" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvMax" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
+            <!-- P99 -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -103,28 +80,16 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="WORST PING"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvWorst"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ms"
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="P99" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvP99" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
+            <!-- JITTER -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -132,28 +97,16 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="JITTER"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvJitter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ms"
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="JITTER" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvJitter" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
+            <!-- PACKET LOSS -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -161,28 +114,16 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="PACKET LOSS"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvLoss"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="%"
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="PACKET LOSS" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvLoss" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="%" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
+            <!-- NETWORK -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="0dp"
@@ -190,26 +131,13 @@
                 android:layout_columnWeight="1"
                 android:layout_gravity="fill_horizontal"
                 android:padding="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="NETWORK"
-                    android:textSize="11sp"
-                    android:textColor="#999999" />
-                <TextView
-                    android:id="@+id/tvNetwork"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#1A1A2E" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textSize="10sp"
-                    android:textColor="#BBBBBB" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="NETWORK" android:textSize="11sp" android:textColor="#999999" />
+                <TextView android:id="@+id/tvNetwork" android:layout_width="wrap_content"
+                          android:layout_height="wrap_content" android:text="—"
+                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:text="" android:textSize="10sp" android:textColor="#BBBBBB" />
             </LinearLayout>
 
         </GridLayout>
