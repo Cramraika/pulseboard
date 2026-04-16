@@ -33,7 +33,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(context, Constants.NOTIF_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Network Monitor")
             .setContentText("Tap to open")
             .setOngoing(true)
