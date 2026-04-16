@@ -29,21 +29,21 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="We\'ll run network tests in the background every 15 minutes.\nEnter your name so your results are labelled correctly."
+        android:text="We\'ll sample network latency once per second and upload aggregate metrics every 15 minutes.\nEnter your work email so your data is labelled correctly."
         android:textSize="14sp"
         android:textColor="#666666"
         android:gravity="center"
         android:layout_marginBottom="32dp" />
 
     <EditText
-        android:id="@+id/etName"
+        android:id="@+id/etEmail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Your name or employee ID"
-        android:inputType="textPersonName"
+        android:hint="Your @codingninjas.com email"
+        android:inputType="textEmailAddress"
         android:padding="12dp"
         android:layout_marginBottom="24dp"
-        android:autofillHints="name" />
+        android:autofillHints="emailAddress" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnStart"
