@@ -43,10 +43,15 @@
             android:label="@string/app_name"
             android:theme="@style/Theme.NetworkMonitorCN"/>
 
-        <!-- Foreground monitoring service -->
+        <!-- Foreground monitoring service.
+             stopWithTask=false: explicit declaration that we want to outlive
+             task removal (user swipe from recents). MIUI/ColorOS don't fully
+             honor this, hence OnboardingActivity also re-starts the service
+             on every app launch as belt-and-suspenders. -->
         <service
             android:name=".service.PingService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="dataSync"/>
 
         <!-- Auto-start service after reboot -->

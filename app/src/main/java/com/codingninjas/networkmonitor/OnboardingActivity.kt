@@ -55,7 +55,12 @@ class OnboardingActivity : AppCompatActivity() {
 
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         if (!prefs.getString(Constants.PREF_USER_ID, "").isNullOrBlank()) {
-            Log.i(tag, "already onboarded — routing to MainActivity")
+            // Already onboarded. Ensure the monitoring service is running —
+            // MIUI and other OEM skins kill foreground services when the user swipes the app
+            // from recents, and our START_STICKY contract isn't honored there. Calling
+            // startForegroundService on an already-running service is an idempotent no-op.
+            Log.i(tag, "already onboarded — ensuring service + routing to MainActivity")
+            ContextCompat.startForegroundService(this, Intent(this, PingService::class.java))
             startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
