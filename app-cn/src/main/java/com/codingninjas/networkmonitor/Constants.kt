@@ -41,6 +41,6 @@ object Constants {
     const val PREF_FLUSH_SEQ = "flush_seq"                        // Long, persists across restarts
     const val PREF_PENDING_RETAIN_COUNT = "pending_retain_count"  // Int, rows retained from prior failures
 
-    // Metadata — bumped to "1.1" in step 10 alongside versionCode 2
-    const val APP_VERSION = "1.0"
+    // Metadata
+    const val APP_VERSION = "1.1"
 }

@@ -40,6 +40,16 @@ class OnboardingActivity : AppCompatActivity() {
         }
     }
 
+    // v1.1: BSSID reads on Android 8+ require ACCESS_FINE_LOCATION. Denial is
+    // non-fatal (BSSID field reports the "permission_denied" sentinel), so we
+    // always proceed to the battery step regardless of outcome.
+    private val requestLocationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Log.i(tag, "location permission ${if (granted) "granted" else "denied"}")
+        proceedAfterLocationDone()
+    }
+
     // Activity Result launcher for the battery-exemption system dialog.
     // Proceeds to finalizeOnboarding regardless of whether user granted —
     // we've done our due diligence by asking.
@@ -162,12 +172,43 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     /**
-     * Notification permission granted. Now ask about battery-optimization exemption.
-     * We launch the system dialog via Activity Result so we can wait for the user's
-     * response before proceeding to finalize — otherwise MainActivity launches on top
-     * of the system dialog and the user never actually sees the battery prompt.
+     * Notification permission granted. v1.1 inserts a location-permission step
+     * (required for BSSID reads) before the existing battery-exemption prompt.
+     * Rationale dialog explains the Wi-Fi-AP-only use so the user isn't surprised
+     * by a GPS-looking prompt.
      */
     private fun proceedAfterNotifGranted() {
+        val alreadyGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (alreadyGranted) {
+            proceedAfterLocationDone()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Location permission")
+            .setMessage(
+                "We use location permission only to identify which Wi-Fi access " +
+                "point (BSSID) your device is connected to. We do not collect " +
+                "GPS location or upload coordinates."
+            )
+            .setPositiveButton("Grant") { _, _ ->
+                requestLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            .setNegativeButton("Skip") { _, _ ->
+                Log.i(tag, "location rationale declined — proceeding without BSSID")
+                proceedAfterLocationDone()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    /**
+     * Location step complete (granted or declined — both fine). Ask about
+     * battery-optimization exemption. Activity Result so MainActivity doesn't
+     * launch on top of the system dialog.
+     */
+    private fun proceedAfterLocationDone() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (pm.isIgnoringBatteryOptimizations(packageName)) {
             Log.i(tag, "battery exemption already granted — skipping prompt")
