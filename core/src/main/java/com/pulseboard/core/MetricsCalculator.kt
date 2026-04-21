@@ -92,6 +92,84 @@ object MetricsCalculator {
         )
     }
 
+    /**
+     * Counts pairs of consecutive samples (by timestamp) whose delta exceeds
+     * [thresholdMs]. Used as a proxy for brief service disconnections / OEM
+     * throttle pauses — v1.0 sampler runs at 1 Hz, so a gap > 3 s means at
+     * least two samples' worth of time was lost.
+     *
+     * Sorts by timestamp first, so unsorted input is handled.
+     */
+    fun gapsCount(samples: List<Sample>, thresholdMs: Long = 3000L): Int {
+        if (samples.size < 2) return 0
+        val sorted = samples.sortedBy { it.tsMs }
+        var count = 0
+        for (i in 1 until sorted.size) {
+            if (sorted[i].tsMs - sorted[i - 1].tsMs > thresholdMs) count++
+        }
+        return count
+    }
+
+    /**
+     * Window-level Wi-Fi aggregates computed from every sample's [WifiSnapshot].
+     * Samples without a snapshot (e.g. v1.0-style construction with no wifi)
+     * are skipped — their RTT data still contributes to per-target metrics,
+     * but they don't affect Wi-Fi context.
+     */
+    fun deviceLevelAggregates(samples: List<Sample>): DeviceAggregates {
+        val snapshots = samples
+            .sortedBy { it.tsMs }
+            .mapNotNull { it.wifi }
+        if (snapshots.isEmpty()) return DeviceAggregates.EMPTY
+
+        val bssidChanges = countTransitions(snapshots.map { it.bssid })
+        val ssidChanges = countTransitions(snapshots.map { it.ssid })
+
+        val rssiValues = snapshots.mapNotNull { it.rssi }
+        val rssiMin = rssiValues.minOrNull()
+        val rssiMax = rssiValues.maxOrNull()
+        val rssiAvg = if (rssiValues.isNotEmpty()) rssiValues.average().toInt() else null
+
+        val networkTypeDominant = snapshots
+            .groupingBy { it.networkType }.eachCount()
+            .maxByOrNull { it.value }?.key ?: "none"
+
+        val vpnDominant = snapshots.count { it.vpnActive } > snapshots.size / 2
+
+        val current = snapshots.lastOrNull()
+
+        return DeviceAggregates(
+            bssidChangesCount = bssidChanges,
+            ssidChangesCount = ssidChanges,
+            rssiMin = rssiMin,
+            rssiAvg = rssiAvg,
+            rssiMax = rssiMax,
+            networkTypeDominant = networkTypeDominant,
+            primaryBssid = dominant(snapshots.map { it.bssid }),
+            primarySsid = dominant(snapshots.map { it.ssid }),
+            primaryFrequencyMhz = dominant(snapshots.map { it.frequencyMhz }),
+            primaryLinkSpeedMbps = dominant(snapshots.map { it.linkSpeedMbps }),
+            currentBssid = current?.bssid,
+            currentRssi = current?.rssi,
+            vpnActive = vpnDominant
+        )
+    }
+
+    private fun <T> countTransitions(values: List<T?>): Int {
+        if (values.size < 2) return 0
+        var count = 0
+        for (i in 1 until values.size) {
+            if (values[i] != values[i - 1]) count++
+        }
+        return count
+    }
+
+    private fun <T : Any> dominant(values: List<T?>): T? {
+        val nonNull = values.filterNotNull()
+        if (nonNull.isEmpty()) return null
+        return nonNull.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+    }
+
     private fun percentile(sorted: List<Double>, p: Double): Double {
         // Caller (aggregate) must filter empty RTT lists before reaching this.
         // Total-loss windows are routed to null fields without invoking percentile().

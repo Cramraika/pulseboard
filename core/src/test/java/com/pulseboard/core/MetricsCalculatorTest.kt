@@ -1,6 +1,7 @@
 package com.pulseboard.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -189,6 +190,119 @@ class MetricsCalculatorTest {
         assertNull(m.avgPing)
         assertNull(m.maxRttOffsetSec)
     }
+
+    // --- v1.1 gapsCount ---
+
+    @Test
+    fun `gapsCount returns 0 for fewer than two samples`() {
+        assertEquals(0, MetricsCalculator.gapsCount(emptyList()))
+        assertEquals(0, MetricsCalculator.gapsCount(listOf(Sample(10.0, 1000L))))
+    }
+
+    @Test
+    fun `gapsCount returns 0 when all deltas are at or below threshold`() {
+        val samples = listOf(
+            Sample(null, 0L),
+            Sample(null, 1000L),     // delta 1000
+            Sample(null, 4000L),     // delta 3000 (== threshold, not > )
+            Sample(null, 6500L)      // delta 2500
+        )
+        assertEquals(0, MetricsCalculator.gapsCount(samples, thresholdMs = 3000L))
+    }
+
+    @Test
+    fun `gapsCount counts each delta strictly exceeding threshold`() {
+        val samples = listOf(
+            Sample(null, 0L),
+            Sample(null, 5000L),     // delta 5000 > 3000 → gap
+            Sample(null, 6000L),     // delta 1000 → ok
+            Sample(null, 10_500L)    // delta 4500 > 3000 → gap
+        )
+        assertEquals(2, MetricsCalculator.gapsCount(samples))
+    }
+
+    @Test
+    fun `gapsCount sorts unsorted input by timestamp before scanning`() {
+        val samples = listOf(
+            Sample(null, 10_000L),
+            Sample(null, 0L),
+            Sample(null, 5_000L)
+        )
+        // Sorted: 0, 5000, 10_000. Deltas 5000 and 5000 → 2 gaps.
+        assertEquals(2, MetricsCalculator.gapsCount(samples))
+    }
+
+    // --- v1.1 deviceLevelAggregates ---
+
+    @Test
+    fun `deviceLevelAggregates counts BSSID transitions and picks dominant values`() {
+        val base = 1_000L
+        val a = wifiSnapshot(bssid = "aa:aa", ssid = "Office", rssi = -55, networkType = "wifi", atMs = base)
+        val b = wifiSnapshot(bssid = "bb:bb", ssid = "Office", rssi = -60, networkType = "wifi", atMs = base + 1000)
+        val a2 = wifiSnapshot(bssid = "aa:aa", ssid = "Office", rssi = -50, networkType = "wifi", atMs = base + 2000)
+        val samples = listOf(
+            Sample(10.0, base,         target = "t", wifi = a),
+            Sample(12.0, base + 1000,  target = "t", wifi = b),
+            Sample(11.0, base + 2000,  target = "t", wifi = a2),
+            Sample(15.0, base + 3000,  target = "t", wifi = a2)  // a2 again — no transition
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        // transitions: a→b (1), b→a2 (2), a2→a2 (still 2)
+        assertEquals(2, agg.bssidChangesCount)
+        assertEquals(0, agg.ssidChangesCount)                 // constant Office
+        assertEquals("aa:aa", agg.primaryBssid)               // 3 samples of aa:aa vs 1 of bb:bb
+        assertEquals("Office", agg.primarySsid)
+        assertEquals("wifi", agg.networkTypeDominant)
+        assertEquals("aa:aa", agg.currentBssid)
+        assertEquals(-50, agg.currentRssi)                    // latest snapshot
+    }
+
+    @Test
+    fun `deviceLevelAggregates computes RSSI stats ignoring nulls and handles mixed transports`() {
+        val base = 1_000L
+        val wifi55 = wifiSnapshot(bssid = "aa", ssid = "Office", rssi = -55, networkType = "wifi", atMs = base)
+        val wifi45 = wifiSnapshot(bssid = "aa", ssid = "Office", rssi = -45, networkType = "wifi", atMs = base + 1000)
+        val cell = wifiSnapshot(bssid = null, ssid = null, rssi = null, networkType = "cellular", atMs = base + 2000)
+        val vpn = wifiSnapshot(bssid = null, ssid = null, rssi = null, networkType = "wifi", atMs = base + 3000, vpn = true)
+        val samples = listOf(
+            Sample(null, base,          target = "t", wifi = wifi55),
+            Sample(null, base + 1000,   target = "t", wifi = wifi45),
+            Sample(null, base + 2000,   target = "t", wifi = cell),
+            Sample(null, base + 3000,   target = "t", wifi = vpn)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals(-55, agg.rssiMin)
+        assertEquals(-45, agg.rssiMax)
+        assertEquals(-50, agg.rssiAvg)                        // (-55 + -45) / 2
+        assertEquals("wifi", agg.networkTypeDominant)         // 3 wifi vs 1 cellular
+        assertFalse("vpn minority → dominant false", agg.vpnActive)
+    }
+
+    @Test
+    fun `deviceLevelAggregates returns EMPTY defaults when no samples have wifi context`() {
+        // Samples with wifi=null (v1.0-style construction) contribute nothing
+        // to Wi-Fi aggregates, even if their RTT data is populated.
+        val samples = listOf(
+            Sample(10.0, 1000L),
+            Sample(20.0, 2000L),
+            Sample(null, 3000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals(DeviceAggregates.EMPTY, agg)
+        assertEquals("none", agg.networkTypeDominant)
+        assertNull(agg.rssiAvg)
+        assertNull(agg.primaryBssid)
+    }
+
+    private fun wifiSnapshot(
+        bssid: String?, ssid: String?, rssi: Int?, networkType: String,
+        atMs: Long, vpn: Boolean = false
+    ) = WifiSnapshot(
+        ssid = ssid, bssid = bssid, rssi = rssi,
+        linkSpeedMbps = null, frequencyMhz = null,
+        networkType = networkType, vpnActive = vpn,
+        collectedAtMs = atMs
+    )
 
     @Test
     fun `mixed unreachable and successful yields correct partial loss`() {
