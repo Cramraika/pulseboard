@@ -1,167 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#F5F5F5"
-    android:padding="20dp">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tvGreeting"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hi,"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#1A1A2E"
-        android:layout_marginBottom="4dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Background monitoring is active"
-        android:textSize="12sp"
-        android:textColor="#4F46E5"
-        android:layout_marginBottom="20dp" />
-
-    <androidx.cardview.widget.CardView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:contentPadding="16dp">
+        android:orientation="vertical"
+        android:padding="20dp">
 
-        <GridLayout
+        <TextView
+            android:id="@+id/tvGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hi,"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A2E"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Background monitoring is active. Analysis happens in the Sheet."
+            android:textSize="12sp"
+            android:textColor="#4F46E5"
+            android:layout_marginBottom="20dp" />
+
+        <TextView
+            android:id="@+id/tvLastSentHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No data yet"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A2E"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/tvSmartflo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="2">
+            android:text="smartflo:   —"
+            android:textSize="13sp"
+            android:textColor="#1A1A2E"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="4dp" />
 
-            <!-- AVG PING -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="AVG PING" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvAvg" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/tvGateway"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="gateway:    —"
+            android:textSize="13sp"
+            android:textColor="#1A1A2E"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="4dp" />
 
-            <!-- MAX -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="MAX" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvMax" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/tvCloudflare"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="cloudflare: —"
+            android:textSize="13sp"
+            android:textColor="#1A1A2E"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="4dp" />
 
-            <!-- P99 -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="P99" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvP99" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/tvDns"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="dns:        —"
+            android:textSize="13sp"
+            android:textColor="#1A1A2E"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="20dp" />
 
-            <!-- JITTER -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="JITTER" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvJitter" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="ms" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
+        <TextView
+            android:id="@+id/tvFooter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="First flush completes at the next 15-minute wall-clock mark."
+            android:textSize="11sp"
+            android:textColor="#777777"
+            android:lineSpacingMultiplier="1.3" />
 
-            <!-- PACKET LOSS -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="PACKET LOSS" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvLoss" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="%" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
-
-            <!-- NETWORK -->
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:padding="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="NETWORK" android:textSize="11sp" android:textColor="#999999" />
-                <TextView android:id="@+id/tvNetwork" android:layout_width="wrap_content"
-                          android:layout_height="wrap_content" android:text="—"
-                          android:textSize="22sp" android:textStyle="bold" android:textColor="#1A1A2E" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                          android:text="" android:textSize="10sp" android:textColor="#BBBBBB" />
-            </LinearLayout>
-
-        </GridLayout>
-    </androidx.cardview.widget.CardView>
-
-    <TextView
-        android:id="@+id/tvLastUpdate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Last updated: —"
-        android:textSize="11sp"
-        android:textColor="#AAAAAA"
-        android:layout_marginTop="12dp"
-        android:gravity="center" />
-
-    <TextView
-        android:id="@+id/tvNoData"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No data yet.\nFirst test runs within 15 minutes."
-        android:textSize="14sp"
-        android:textColor="#999999"
-        android:layout_marginTop="40dp"
-        android:gravity="center"
-        android:visibility="gone" />
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>

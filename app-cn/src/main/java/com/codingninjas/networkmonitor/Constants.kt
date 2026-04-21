@@ -8,9 +8,6 @@ object Constants {
     const val SMARTFLO_IP = "14.97.20.3"          // Tata Smartflo VoIP endpoint (AHM region)
     const val CLOUDFLARE_IP = "1.1.1.1"           // generic internet reachability control
     const val DNS_RESOLVER_IP = "1.1.1.1"         // target for UDP-DNS probe
-    // v1.0 single-target constant — retained so v1.0-compat PingService keeps
-    // compiling during the intermediate commits. Removed in the step-8 refactor.
-    const val PING_TARGET = "8.8.8.8"
     const val PING_TIMEOUT_SEC = 2
 
     // Sampling + flush cadence
@@ -39,16 +36,6 @@ object Constants {
     // SharedPreferences
     const val PREFS_NAME = "nm_prefs"
     const val PREF_USER_ID = "user_id"
-
-    // v1.0 prefs keys — retained so v1.0-compat PingService + MainActivity still
-    // compile during the intermediate commits. Removed in step 9 alongside the
-    // MainActivity UI rewrite.
-    const val PREF_LAST_RESULT = "last_result"
-    const val PREF_LAST_UPDATE_TIME = "last_update_time"
-    const val PREF_LAST_NETWORK_TYPE = "last_network_type"
-
-    // v1.1 prefs keys — populated by the new 4-sampler flusher (step 8) and read
-    // by the last-sent-summary MainActivity (step 9).
     const val PREF_LAST_BATCH_JSON = "last_batch_json"            // JSON of List<SheetPayload>
     const val PREF_LAST_FLUSH_MS = "last_flush_ms"                // Long
     const val PREF_FLUSH_SEQ = "flush_seq"                        // Long, persists across restarts
