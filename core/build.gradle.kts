@@ -37,6 +37,9 @@ kotlin {
 }
 
 dependencies {
+    // AndroidX — ContextCompat for WifiMetadataCollector's permission check
+    implementation(libs.androidx.core.ktx)
+
     // Runtime deps used inside the engine
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
