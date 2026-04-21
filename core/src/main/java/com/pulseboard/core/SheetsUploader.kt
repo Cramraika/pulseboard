@@ -15,22 +15,75 @@ private const val DEFAULT_CONNECT_TIMEOUT_SEC = 10L
 private const val DEFAULT_WRITE_TIMEOUT_SEC = 10L
 private const val DEFAULT_READ_TIMEOUT_SEC = 15L
 
+/**
+ * One row in the v1.1 schema (40 columns). The Android uploader posts a
+ * JSON array of N of these per flush (one per target: smartflo / gateway /
+ * cloudflare / dns for CN). Device-level aggregates (Wi-Fi transitions,
+ * scan context, flush_seq) are duplicated across every row in the array
+ * so each Sheet row is self-contained.
+ *
+ * Field naming convention:
+ *   - v1.0 `*_ping_ms` renamed to `*_rtt_ms` (it was always RTT, "ping"
+ *     was colloquial).
+ *   - v1.0 `network_type` renamed to `network_type_dominant` (now computed
+ *     over a 15-min window with possibly mixed transports).
+ *   - Every new v1.1 field is nullable-with-default so test helpers +
+ *     future callers only populate what they need.
+ */
 data class SheetPayload(
+    // --- identity ---
     @SerializedName("window_start") val windowStart: String,
     @SerializedName("user_id") val userId: String,
     @SerializedName("device_model") val deviceModel: String,
-    @SerializedName("network_type") val networkType: String,
-    @SerializedName("avg_ping_ms") val avgPingMs: Double?,
-    @SerializedName("min_ping_ms") val minPingMs: Double?,
-    @SerializedName("max_ping_ms") val maxPingMs: Double?,
-    @SerializedName("p50_ping_ms") val p50PingMs: Double?,
-    @SerializedName("p95_ping_ms") val p95PingMs: Double?,
-    @SerializedName("p99_ping_ms") val p99PingMs: Double?,
-    @SerializedName("jitter_ms") val jitterMs: Double?,
-    @SerializedName("packet_loss_pct") val packetLossPct: Double,
-    @SerializedName("samples_count") val samplesCount: Int,
-    @SerializedName("max_rtt_offset_sec") val maxRttOffsetSec: Int?,
-    @SerializedName("app_version") val appVersion: String
+    @SerializedName("android_sdk") val androidSdk: Int? = null,
+    @SerializedName("oem_skin") val oemSkin: String? = null,
+    @SerializedName("app_version") val appVersion: String,
+
+    // --- per-target ---
+    @SerializedName("target") val target: String? = null,
+    @SerializedName("gateway_ip") val gatewayIp: String? = null,
+    @SerializedName("unreachable_target") val unreachableTarget: Boolean? = null,
+
+    // --- RTT metrics ---
+    @SerializedName("avg_rtt_ms") val avgRttMs: Double? = null,
+    @SerializedName("min_rtt_ms") val minRttMs: Double? = null,
+    @SerializedName("max_rtt_ms") val maxRttMs: Double? = null,
+    @SerializedName("p50_rtt_ms") val p50RttMs: Double? = null,
+    @SerializedName("p95_rtt_ms") val p95RttMs: Double? = null,
+    @SerializedName("p99_rtt_ms") val p99RttMs: Double? = null,
+    @SerializedName("jitter_ms") val jitterMs: Double? = null,
+    @SerializedName("packet_loss_pct") val packetLossPct: Double? = null,
+
+    // --- sample counts ---
+    @SerializedName("samples_count") val samplesCount: Int = 0,
+    @SerializedName("reachable_samples_count") val reachableSamplesCount: Int? = null,
+    @SerializedName("max_rtt_offset_sec") val maxRttOffsetSec: Int? = null,
+
+    // --- Wi-Fi aggregates (duplicated across per-target rows) ---
+    @SerializedName("gaps_count") val gapsCount: Int? = null,
+    @SerializedName("bssid_changes_count") val bssidChangesCount: Int? = null,
+    @SerializedName("ssid_changes_count") val ssidChangesCount: Int? = null,
+    @SerializedName("rssi_min") val rssiMin: Int? = null,
+    @SerializedName("rssi_avg") val rssiAvg: Int? = null,
+    @SerializedName("rssi_max") val rssiMax: Int? = null,
+    @SerializedName("primary_bssid") val primaryBssid: String? = null,
+    @SerializedName("primary_ssid") val primarySsid: String? = null,
+    @SerializedName("primary_frequency_mhz") val primaryFrequencyMhz: Int? = null,
+    @SerializedName("primary_link_speed_mbps") val primaryLinkSpeedMbps: Int? = null,
+    @SerializedName("current_bssid") val currentBssid: String? = null,
+    @SerializedName("current_rssi") val currentRssi: Int? = null,
+    @SerializedName("network_type_dominant") val networkTypeDominant: String? = null,
+    @SerializedName("vpn_active") val vpnActive: Boolean? = null,
+
+    // --- scan context (once per 15-min flush) ---
+    @SerializedName("visible_aps_count") val visibleApsCount: Int? = null,
+    @SerializedName("best_available_rssi") val bestAvailableRssi: Int? = null,
+    @SerializedName("sticky_client_gap_db") val stickyClientGapDb: Int? = null,
+
+    // --- operational telemetry ---
+    @SerializedName("duty_cycle_pct") val dutyCyclePct: Double? = null,
+    @SerializedName("flush_seq") val flushSeq: Long? = null,
+    @SerializedName("retain_merged_count") val retainMergedCount: Int? = null
 )
 
 class SheetsUploader(
