@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pulseboard brand palette (ported from docs/design/palette.md 2026-04-20) -->
+
+    <!-- Primary — Signal cyan -->
+    <color name="brand_primary">#0FC9E3</color>
+    <color name="brand_primary_hover">#2BD6EE</color>
+    <color name="brand_primary_muted">#0A8796</color>
+
+    <!-- Accent — Lime heartbeat -->
+    <color name="brand_accent">#B8E94A</color>
+    <color name="brand_accent_muted">#89B236</color>
+
+    <!-- Semantic — network-health native -->
+    <color name="status_healthy">#4ADE80</color>
+    <color name="status_degraded">#FBBF24</color>
+    <color name="status_poor">#F87171</color>
+    <color name="status_offline">#64748B</color>
+
+    <!-- Neutrals — dark-mode-first scale -->
+    <color name="neutral_950">#0A0D14</color>
+    <color name="neutral_900">#121826</color>
+    <color name="neutral_850">#1A2233</color>
+    <color name="neutral_700">#2D3A52</color>
+    <color name="neutral_500">#6B7B9C</color>
+    <color name="neutral_300">#9CAAC8</color>
+    <color name="neutral_100">#E7ECF5</color>
+    <color name="neutral_50">#F8FAFD</color>
+
+    <!-- Legacy Material 2 defaults (kept as unused-but-referenced; may be in old layouts) -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

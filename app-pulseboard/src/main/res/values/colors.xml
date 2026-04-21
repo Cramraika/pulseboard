@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pulseboard brand palette (source of truth: docs/design/tokens.json, 2026-04-20) -->
+    <color name="brand_primary">#0FC9E3</color>
+    <color name="brand_primary_muted">#0A8796</color>
+    <color name="brand_accent">#B8E94A</color>
+
+    <color name="status_poor">#F87171</color>
+
+    <color name="neutral_950">#0A0D14</color>
+    <color name="neutral_900">#121826</color>
+    <color name="neutral_100">#E7ECF5</color>
+    <color name="neutral_50">#F8FAFD</color>
+</resources>

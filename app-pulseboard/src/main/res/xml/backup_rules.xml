@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Pulseboard stub has no persistent state yet. v1.1 will exclude any
+         user PII (user_id email, cached BSSIDs) from cloud backup once onboarding
+         starts writing to SharedPreferences. -->
+</full-backup-content>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Empty for stub; v1.1 configures includes/excludes alongside prefs schema. -->
+    </cloud-backup>
+</data-extraction-rules>

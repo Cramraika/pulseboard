@@ -39,42 +39,89 @@ Origin: the repo was internal at Coding Ninjas ("NetworkMonitorCN") to triage Vo
 ## Build / Test / Deploy
 
 ```bash
-# Build debug APK
-./gradlew assembleDebug
+# Run the shared engine's unit tests (MetricsCalculator, SampleBuffer, SheetsUploader)
+./gradlew :core:testDebugUnitTest
 
-# Build signed release APK (requires local keystore — never commit)
-./gradlew assembleRelease
+# Build CN internal debug APK
+./gradlew :app-cn:assembleDebug
+# Build Pulseboard public debug APK
+./gradlew :app-pulseboard:assembleDebug
 
-# Install on a connected device
-adb install app/build/outputs/apk/release/app-release.apk
+# Signed release builds (require keystore props in ~/.gradle/gradle.properties or -P flags)
+./gradlew :app-cn:assembleRelease
+./gradlew :app-pulseboard:assembleRelease
 
-# Lint
-./gradlew lint
+# Install the CN build on a connected device
+adb install app-cn/build/outputs/apk/release/app-cn-release.apk
+# Install the Pulseboard stub
+adb install app-pulseboard/build/outputs/apk/debug/app-pulseboard-debug.apk
+
+# Lint (per module)
+./gradlew :app-cn:lint
+./gradlew :app-pulseboard:lint
 ```
 
 **Release procedure**:
-1. Bump `versionCode` + `versionName` in `app/build.gradle.kts`
-2. `./gradlew assembleRelease` with signing config loaded from `keystore.properties` (gitignored)
-3. Rename output APK to `Pulseboard-v<version>.apk` (legacy `NetworkMonitorCN-v1.0.apk` is the pre-rename v1.0 artifact)
+
+*CN internal build* (`:app-cn`, applicationId `com.codingninjas.networkmonitor`):
+1. Bump `versionCode` + `versionName` in `app-cn/build.gradle.kts`
+2. `./gradlew :app-cn:assembleRelease` with signing config loaded from `keystore.properties` (gitignored)
+3. Rename output APK to `NetworkMonitorCN-v<version>.apk` (in-place upgrade from v1.0 requires keeping the legacy name or CN users re-sideload)
+4. Distribute via internal channel (Drive link). Not published on GitHub Releases (CN-internal diagnostic tool).
+
+*Pulseboard public build* (`:app-pulseboard`, applicationId `com.cramraika.pulseboard`):
+1. Bump `versionCode` + `versionName` in `app-pulseboard/build.gradle.kts`
+2. `./gradlew :app-pulseboard:assembleRelease` with the Pulseboard keystore (separate from CN keystore)
+3. Rename output APK to `Pulseboard-v<version>.apk`
 4. `gh release create v<version> Pulseboard-v<version>.apk --title "..." --notes "..."` — APK lives in Release, never in git
+5. (Eventually) upload AAB to Play Store via `~/.claude/scripts/google-play-publisher.py`
+
+Legacy `NetworkMonitorCN-v1.0.apk` in repo root is the pre-split v1.0 artifact; retained for historical reference.
 
 **Play Store submission (planned)**:
 - Use `~/.claude/scripts/google-play-publisher.py` to upload AABs to `com.cramraika.pulseboard` internal track, graduate to closed → open → production.
 - Requires Play Console developer account + signed AAB + store listing (icon, screenshots, description, privacy policy URL).
 
-## Key Directories
+## Module Layout
+
+Three Gradle modules. Shared engine in `:core`, two thin application modules on top.
+
+```
+:core                    Android library — com.pulseboard.core
+  ├─ PingEngine, SampleBuffer, MetricsCalculator, SheetsUploader, NetworkUtils
+  ├─ Sample, NetworkMetrics, SheetPayload (data classes)
+  └─ Battle-tested via CN v1.0 field deployment. Pure generic primitives —
+     no hardcoded targets, no email gates, no brand strings. Consumers inject config.
+
+:app-cn                  CN internal build — com.codingninjas.networkmonitor
+  ├─ Constants (Smartflo IP, @codingninjas.com gate, CN webhook URL)
+  ├─ OnboardingActivity (CN email gate), BootReceiver, NotificationHelper
+  ├─ service/PingService (CN v1.1 VoIP diagnostic target — see plan below)
+  ├─ ui/MainActivity (CN 6-cell dashboard)
+  └─ CN-branded res/ (strings, theme name retained for v1.0 continuity)
+
+:app-pulseboard          Public build — com.cramraika.pulseboard
+  ├─ Stub today (v0.1.0-stub). v1.1 public enhancements track is SEPARATE from CN's
+  │  VoIP diagnostic plan; Pulseboard stays generic — no Smartflo, no CN email gate.
+  ├─ Configurable targets at onboarding (user enters their own SIP/gateway/control IPs)
+  ├─ Open email allow-list (or none) so any small/mid team can install and run
+  └─ Pulseboard-branded res/ with adaptive launcher icon
+```
+
+### Key Directories
 
 | Path | Purpose |
 |---|---|
-| `app/` | Android application module — Kotlin source, resources, manifest |
-| `app/src/main/java/` | Kotlin source |
-| `app/src/main/res/` | Strings, drawables (launcher icon), layouts |
-| `app/src/main/AndroidManifest.xml` | Permissions, service declarations |
+| `core/` | Shared Android library — engine + data classes |
+| `app-cn/` | CN internal application module (VoIP diagnostic, Smartflo-wired) |
+| `app-pulseboard/` | Pulseboard public application module (generic, configurable) |
 | `gradle/wrapper/` | Gradle wrapper binaries |
-| `docs/` | Architecture + troubleshooting docs |
+| `gradle/libs.versions.toml` | Version catalog — AGP + plugin aliases |
+| `settings.gradle.kts` | `include(":core", ":app-cn", ":app-pulseboard")` |
+| `docs/superpowers/plans/` | Plans, including CN VoIP diagnostic v1.1 (CN-only scope) |
 | `.github/` | FUNDING.yml (sponsors). CI workflows to be added |
 | `LICENSE` | MIT |
-| `README.md` | Public-facing — what it is, install, usage, fork+rebrand guide |
+| `README.md` | Public-facing — what Pulseboard is, install, usage, fork+rebrand guide |
 
 ## External Services / MCPs
 

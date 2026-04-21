@@ -22,5 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Network Monitor CN"
-include(":app")
+rootProject.name = "Pulseboard"
+include(":core")
+include(":app-cn")
+include(":app-pulseboard")

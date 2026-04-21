@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Pulseboard</string>
+    <string name="stub_title">Pulseboard</string>
+    <string name="stub_subtitle">Network health vitals for distributed teams</string>
+    <string name="stub_body">Shared engine: ready.\nPublic app build: v1.1 (coming soon).</string>
+</resources>
