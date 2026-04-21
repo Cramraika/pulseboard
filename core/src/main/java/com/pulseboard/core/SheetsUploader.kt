@@ -49,9 +49,23 @@ class SheetsUploader(
         .readTimeout(readTimeoutSec, TimeUnit.SECONDS)
         .build()
 
-    fun upload(payload: SheetPayload): Boolean {
+    fun upload(payload: SheetPayload): Boolean =
+        executePost(gson.toJson(payload), describe = "samples=${payload.samplesCount}")
+
+    /**
+     * POSTs a JSON array of payloads in one request. All-or-nothing: if the
+     * server response isn't HTTP 2xx + JSON `{"status":"ok"}`, the whole batch
+     * is considered failed and the caller retains all rows for retry.
+     *
+     * Used by v1.1's 4-target flusher to append 4 Sheet rows (one per target)
+     * per 15-minute window in a single POST.
+     */
+    fun uploadBatch(payloads: List<SheetPayload>): Boolean =
+        executePost(gson.toJson(payloads), describe = "batch_size=${payloads.size}")
+
+    private fun executePost(jsonBody: String, describe: String): Boolean {
         return try {
-            val body = gson.toJson(payload).toRequestBody(jsonMedia)
+            val body = jsonBody.toRequestBody(jsonMedia)
             val request = Request.Builder().url(webhookUrl).post(body).build()
             client.newCall(request).execute().use { response ->
                 val bodyStr = response.body?.string() ?: ""
@@ -63,7 +77,7 @@ class SheetsUploader(
                 }
                 val ok = httpOk && bodyOk
                 if (ok) {
-                    Log.i(tag, "upload ok (status=${response.code}, samples=${payload.samplesCount})")
+                    Log.i(tag, "upload ok (status=${response.code}, $describe)")
                 } else {
                     Log.w(tag, "upload failed (status=${response.code}, httpOk=$httpOk, bodyOk=$bodyOk, body=${bodyStr.take(200)})")
                 }

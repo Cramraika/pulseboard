@@ -140,4 +140,52 @@ class SheetsUploaderTest {
         assertEquals(100.0, json.getDouble("packet_loss_pct"), 0.001)
         assertEquals(900, json.getInt("samples_count"))
     }
+
+    // --- v1.1 uploadBatch ---
+
+    @Test
+    fun `uploadBatch returns true on 200 plus status ok`() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"status":"ok","rows_appended":3}"""))
+        val uploader = SheetsUploader(server.url("/exec").toString())
+        assertTrue(uploader.uploadBatch(listOf(fullPayload(), fullPayload(), fullPayload())))
+    }
+
+    @Test
+    fun `uploadBatch returns false on 500 even with status ok body`() {
+        server.enqueue(MockResponse().setResponseCode(500).setBody("""{"status":"ok"}"""))
+        val uploader = SheetsUploader(server.url("/exec").toString())
+        assertFalse(uploader.uploadBatch(listOf(fullPayload())))
+    }
+
+    @Test
+    fun `uploadBatch returns false on 200 plus status error`() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"status":"error","reason":"bad rows"}"""))
+        val uploader = SheetsUploader(server.url("/exec").toString())
+        assertFalse(uploader.uploadBatch(listOf(fullPayload(), fullPayload())))
+    }
+
+    @Test
+    fun `uploadBatch returns false on connection failure`() {
+        server.shutdown()
+        val uploader = SheetsUploader(server.url("/exec").toString())
+        assertFalse(uploader.uploadBatch(listOf(fullPayload())))
+    }
+
+    @Test
+    fun `uploadBatch serializes payload as a JSON array with one element per row`() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"status":"ok"}"""))
+        val uploader = SheetsUploader(server.url("/exec").toString())
+        val payloads = listOf(
+            fullPayload().copy(avgPingMs = 10.0),
+            fullPayload().copy(avgPingMs = 20.0),
+            fullPayload().copy(avgPingMs = 30.0)
+        )
+        uploader.uploadBatch(payloads)
+        val body = server.takeRequest().body.readUtf8()
+        val array = org.json.JSONArray(body)
+        assertEquals(3, array.length())
+        assertEquals(10.0, array.getJSONObject(0).getDouble("avg_ping_ms"), 0.001)
+        assertEquals(20.0, array.getJSONObject(1).getDouble("avg_ping_ms"), 0.001)
+        assertEquals(30.0, array.getJSONObject(2).getDouble("avg_ping_ms"), 0.001)
+    }
 }
