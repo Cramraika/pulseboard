@@ -1,8 +1,11 @@
 package com.codingninjas.networkmonitor
 
 object Constants {
-    // Webhook (unchanged from existing deployment; points at CN's Sheet Apps Script)
-    const val WEBHOOK_URL = "https://script.google.com/a/macros/codingninjas.com/s/AKfycbwc1kkq2KT2lLNrymksf289SozEGh8jI-_sVhx9xhHMZWTUpDwLAI90uRFHmWEN2gfXMQ/exec"
+    // Webhook — v1.1 Apps Script deployment bound to the CN Sheet.
+    // Previous v1.0 URL (hosted under @codingninjas.com workspace) was replaced
+    // with this personal-deployment URL on 2026-04-21 when the v1.1 handler
+    // was published.
+    const val WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwxHvspH8nkTJ7O4zWkP3BjFYLqzs_WLdB_e8pdg-rv_Nl-GmZmYiPzRMaKNpBIAAaggw/exec"
 
     // v1.1 ping targets
     const val SMARTFLO_IP = "14.97.20.3"          // Tata Smartflo VoIP endpoint (AHM region)
