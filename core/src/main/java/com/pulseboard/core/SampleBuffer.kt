@@ -1,8 +1,21 @@
 package com.pulseboard.core
 
+/**
+ * One ping attempt's outcome plus the network context it was observed in.
+ *
+ * The three v1.1 fields (`target`, `unreachable`, `wifi`) are defaulted so that
+ * v1.0-style `Sample(rttMs, tsMs)` construction still compiles and runs unchanged.
+ *
+ * `unreachable=true` signals that no target address was resolvable (e.g. gateway
+ * isn't reachable on CGN mobile data). Aggregator excludes these from the loss
+ * denominator — they represent "we had nothing to ping," not "we pinged and failed."
+ */
 data class Sample(
     val rttMs: Double?,
-    val tsMs: Long
+    val tsMs: Long,
+    val target: String = "default",
+    val unreachable: Boolean = false,
+    val wifi: WifiSnapshot? = null
 )
 
 // Default sized at 5400 samples = 90 minutes at 1 Hz (matches v1.0 retain capacity).

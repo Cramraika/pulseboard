@@ -157,7 +157,12 @@ class PingService : Service() {
             p95PingMs = metrics.p95Ping,
             p99PingMs = metrics.p99Ping,
             jitterMs = metrics.jitter,
-            packetLossPct = metrics.packetLoss,
+            // v1.0 schema: packetLossPct non-null. v1.1's NetworkMetrics.packetLoss
+            // is nullable (null when all samples unreachable). CN v1.0 PingService
+            // never emits unreachable=true samples so this ?: is defensive — the
+            // real nullable propagation lands when SheetPayload is v1.1-shaped in
+            // a later commit.
+            packetLossPct = metrics.packetLoss ?: 100.0,
             samplesCount = metrics.samplesCount,
             maxRttOffsetSec = metrics.maxRttOffsetSec,
             appVersion = Constants.APP_VERSION

@@ -11,8 +11,15 @@ data class NetworkMetrics(
     val p95Ping: Double?,
     val p99Ping: Double?,
     val jitter: Double?,
-    val packetLoss: Double,
+    // Null when samples list was non-empty but every sample was `unreachable=true`
+    // (loss denominator = 0; loss is undefined without reachable measurements).
+    // 0.0 when samples list was empty (no attempts, no loss).
+    val packetLoss: Double?,
     val samplesCount: Int,
+    // Samples that were `unreachable=false` (i.e. had a resolvable target).
+    // Defaulted to samplesCount so pre-v1.1 callers that build NetworkMetrics
+    // directly still compile; aggregate() always sets this explicitly.
+    val reachableSamplesCount: Int = samplesCount,
     val maxRttOffsetSec: Int?
 )
 
@@ -24,20 +31,38 @@ object MetricsCalculator {
                 avgPing = null, minPing = null, maxPing = null,
                 p50Ping = null, p95Ping = null, p99Ping = null,
                 jitter = null, packetLoss = 0.0, samplesCount = 0,
+                reachableSamplesCount = 0,
                 maxRttOffsetSec = null
             )
         }
 
         val total = samples.size
-        val successful = samples.filter { it.rttMs != null }
+        val reachable = samples.filter { !it.unreachable }
+        val reachableCount = reachable.size
+
+        if (reachableCount == 0) {
+            // Window had samples but none were reachable (e.g. gateway target
+            // had no resolvable address for the full 15-min window). Loss is
+            // undefined without a reachable denominator → null.
+            return NetworkMetrics(
+                avgPing = null, minPing = null, maxPing = null,
+                p50Ping = null, p95Ping = null, p99Ping = null,
+                jitter = null, packetLoss = null, samplesCount = total,
+                reachableSamplesCount = 0,
+                maxRttOffsetSec = null
+            )
+        }
+
+        val successful = reachable.filter { it.rttMs != null }
         val rtts = successful.mapNotNull { it.rttMs }
-        val loss = ((total - rtts.size).toDouble() / total) * 100
+        val loss = ((reachableCount - rtts.size).toDouble() / reachableCount) * 100
 
         if (rtts.isEmpty()) {
             return NetworkMetrics(
                 avgPing = null, minPing = null, maxPing = null,
                 p50Ping = null, p95Ping = null, p99Ping = null,
                 jitter = null, packetLoss = round1(loss), samplesCount = total,
+                reachableSamplesCount = reachableCount,
                 maxRttOffsetSec = null
             )
         }
@@ -62,6 +87,7 @@ object MetricsCalculator {
             jitter = round1(stdDev),
             packetLoss = round1(loss),
             samplesCount = total,
+            reachableSamplesCount = reachableCount,
             maxRttOffsetSec = maxOffset
         )
     }
