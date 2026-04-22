@@ -1,0 +1,39 @@
+name: docs/design check
+
+on:
+  push:
+    paths:
+      - 'docs/design/**'
+      - '.github/workflows/docs-design-check.yml'
+      - 'scripts/check-docs-design.sh'
+  pull_request:
+    paths:
+      - 'docs/design/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect tier from CLAUDE.md
+        id: tier
+        run: |
+          if [ -f CLAUDE.md ]; then
+            if grep -qE 'tier:\s*[Aa]|Tier A' CLAUDE.md; then
+              echo "tier=A" >> "$GITHUB_OUTPUT"
+            elif grep -qE 'tier:\s*[Bb]|Tier B' CLAUDE.md; then
+              echo "tier=B" >> "$GITHUB_OUTPUT"
+            elif grep -qE 'tier:\s*[Cc]|Tier C' CLAUDE.md; then
+              echo "tier=C" >> "$GITHUB_OUTPUT"
+            else
+              echo "tier=A" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "tier=A" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run docs/design check
+        run: bash scripts/check-docs-design.sh --tier ${{ steps.tier.outputs.tier }}
