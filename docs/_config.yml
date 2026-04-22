@@ -1,0 +1,14 @@
+title: Pulseboard
+description: Install-and-forget network health vitals for distributed teams
+url: https://cramraika.github.io
+baseurl: /pulseboard
+theme: jekyll-theme-minimal
+
+markdown: kramdown
+include:
+  - play
+
+exclude:
+  - design
+  - superpowers
+  - _*
