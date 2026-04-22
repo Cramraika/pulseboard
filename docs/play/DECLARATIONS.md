@@ -7,9 +7,9 @@ Answers drafted against Pulseboard v0.1.0-stub (`com.vagarylabs.pulseboard`). Mi
 ---
 
 ## 1. Privacy policy
-**Required IF** the app collects any user data or asks for location/camera/mic/contacts permissions. Pulseboard's stub doesn't yet — but v1.1 will (location for Wi-Fi BSSID, device identifiers, network metrics). Set the URL now.
+**Required IF** the app collects any user data or asks for location/camera/mic/contacts permissions. Pulseboard's stub doesn't yet — but v1.1 will (location for Wi-Fi BSSID, device identifiers, network metrics). URL already hosted.
 
-- **Privacy policy URL**: `https://cramraika.github.io/pulseboard/privacy/` (see `docs/play/PRIVACY.md` — host it via GitHub Pages or your own domain)
+- **Privacy policy URL**: https://cramraika.github.io/pulseboard/play/PRIVACY.html _(live; paste this into Play Console → App content → Privacy policy)_
 
 ## 2. App access
 - **Is all or part of your app restricted based on login credentials, memberships, location, or other restrictions?** → **No, all functionality is available without special access**
@@ -73,9 +73,11 @@ Already pushed via `make sync-listing` — title, short description, full descri
 - **Tags**: network, monitoring, wifi, diagnostics
 
 ## 14. Store settings → Contact details
-- **Website**: `https://github.com/Cramraika/pulseboard`
-- **Email**: *(your contact email)* — Play requires a visible email on the store listing
-- **Phone** (optional): leave blank
+_Set via API 2026-04-22 — already live. Listed here for completeness._
+- **Website**: https://cramraika.github.io/pulseboard/
+- **Email**: contact@vagarylife.com
+- **Default language**: en-US
+- **Phone** (optional): blank
 
 ## 15. Countries and regions
 - **Availability**: **All countries** (recommended for an OSS utility) or restrict as preferred

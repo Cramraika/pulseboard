@@ -71,7 +71,7 @@ Material changes to this policy will be announced in the GitHub repository and, 
 ## Contact
 
 - Issues: https://github.com/Cramraika/pulseboard/issues
-- Email: *[Please replace with the maintainer contact email before publishing]*
+- Email: contact@vagarylife.com
 
 ---
 
