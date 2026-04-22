@@ -1,95 +1,193 @@
-# Pulseboard — Releasing to Play Store
+# Releasing Pulseboard to Google Play
 
-Everything is driven by `make` targets backed by `~/.claude/scripts/google-play-publisher.py`. You should never need to open Play Console for a routine release.
+Complete lifecycle runbook. For **Google's official checklist mapped to our automation**, see [`docs/play/PLAY_CHECKLIST.md`](docs/play/PLAY_CHECKLIST.md). For **declarations answers**, see [`docs/play/DECLARATIONS.md`](docs/play/DECLARATIONS.md). For **the privacy policy draft**, see [`docs/play/PRIVACY.md`](docs/play/PRIVACY.md).
 
-## One-time setup (per machine)
+---
 
-1. **Service account JSON** at `~/.config/google-play/sa.json` (chmod 600). For this workstation, already in place.
-2. **Keystore props** in `~/.gradle/gradle.properties`:
-   - `PULSEBOARD_KEYSTORE_PATH`, `PULSEBOARD_KEYSTORE_PASSWORD`, `PULSEBOARD_KEY_ALIAS`, `PULSEBOARD_KEY_PASSWORD`
-3. **Play Developer API** enabled for the `vagarylife` GCP project.
-4. **Service account** `vagarylife@vagarylife.iam.gserviceaccount.com` granted Admin in Play Console → Users & permissions.
-5. **Play Developer API ToS** accepted (one-time banner).
+## One-time setup (per workstation)
 
-## Standard release flow
+Already done for this Mac. If starting fresh on a new workstation:
 
 ```bash
-# 0. Bump versionCode + versionName in app/build.gradle.kts
-#    (and add metadata/android/en-US/changelogs/<new-versionCode>.txt)
+# 1. Service account JSON at the canonical path
+mkdir -p ~/.config/google-play
+mv <downloaded-sa>.json ~/.config/google-play/sa.json
+chmod 600 ~/.config/google-play/sa.json
 
-# 1. Run engine tests
-make test
+# 2. Publisher dependencies
+python3 -m pip install --user google-auth google-api-python-client
 
-# 2. Upload to internal testing track
+# 3. System libs for asset rendering
+brew install cairo
+
+# 4. Keystore + gradle properties
+# (Pulseboard keystore at ~/keystores/pulseboard.jks already; props in ~/.gradle/gradle.properties)
+
+# 5. One-time browser work (Google-side)
+#    - Enable Google Play Android Developer API in GCP project `vagarylife`
+#    - Play Console → Users and permissions → invite vagarylife@vagarylife.iam.gserviceaccount.com as Admin
+#    - Accept Play Developer API ToS
+```
+
+## One-time setup (per NEW app)
+
+For any new Vagary Labs Android app (not Pulseboard), use the bootstrap:
+
+```bash
+bash ~/.claude/scripts/bootstrap-vagary-android.sh \
+    --app-name "Orbitwatch" \
+    --package com.vagarylabs.orbitwatch \
+    --dir ~/AndroidStudioProjects/orbitwatch \
+    --tagline "Your one-liner"
+```
+
+The script scaffolds: Android project, Makefile, vendored publisher, CI workflow, metadata/, DECLARATIONS template, PRIVACY template, adaptive icon, keystore (prompts). Then prints the remaining browser steps.
+
+---
+
+## First rollout on a brand-new app (Pulseboard's current state)
+
+This is the **only time you must use Play Console**. After this, every release is automated.
+
+1. **Play Console → Create app**
+   - App name, default language, package name (e.g. `com.vagarylabs.pulseboard`), free, accept declarations → Create
+
+2. **Fill declarations** — walk through `docs/play/DECLARATIONS.md` section by section. ~30-45 min browser time. Long parts: data safety, content rating.
+
+3. **Host privacy policy** — enable GitHub Pages on the repo (Settings → Pages → Deploy from a branch → `main` → `/docs`). Policy becomes available at `https://cramraika.github.io/pulseboard/play/PRIVACY` or configure a nicer route. Paste the URL into Play Console → App content → Privacy policy.
+
+4. **Upload first AAB + push listing**
+   ```bash
+   make sync-listing       # title, short/full, icon, feature graphic, screenshots
+   make release-internal   # build + upload (draft) + attach release notes
+   ```
+
+5. **Click "Start rollout to Internal testing"** in Play Console → Internal testing → review draft → confirm rollout. This is the click that exits "draft app" state forever.
+
+6. **Create tester email list** — Play Console → Internal testing → Testers tab → Create email list → paste your email(s) → activate. Copy the opt-in URL.
+
+7. **Install on your device** — open opt-in URL in browser logged into tester Google account → "Become a tester" → install from Play Store.
+
+---
+
+## Steady-state release flow (every release after the first)
+
+```bash
+# 1. Bump version
+# Edit app/build.gradle.kts: versionCode = 2, versionName = "0.2.0"
+# Add metadata/android/en-US/changelogs/2.txt with release notes
+
+# 2. Internal testing (no review — instant)
 make release-internal
 
-# 3. Smoke-test on your own device (install via Play app internal track invite)
+# 3. Check status, ramp up if happy
 make status
+make promote-alpha   # closed testing — triggers Google review
+make promote-beta    # open testing — triggers Google review
+make promote-prod PCT=0.05   # production at 5% staged
 
-# 4. Promote up the ladder
-make promote-alpha   # closed testing
-make promote-beta    # open testing
-make promote-prod PCT=0.05   # 5% staged production rollout
+# 4. Ramp production
+make rollout PCT=0.2     # widen to 20%
+make rollout PCT=0.5     # 50%
+make rollout PCT=1.0     # full (auto-transitions to status=completed)
 
-# 5. Monitor; if bad, halt. If good, ramp.
-make halt                          # stop the rollout
-make rollout PCT=0.2               # widen to 20%
-make rollout PCT=1.0               # full rollout (transitions to "completed")
+# 5. If rollout goes bad
+make halt                          # freeze propagation
+# fix the issue, bump versionCode, build, promote a new build
+# (Play has no native rollback — higher versionCode of the good build is the answer)
 ```
 
-## Listing / metadata changes
-
-Edit files under `metadata/android/en-US/` and push:
+## CI-driven release
 
 ```bash
-make sync-listing              # all locales, includes images
-make sync-listing-text         # faster; skip image re-upload
-make sync-listing LANG=en-US   # single locale
+git tag v0.2.0
+git push origin v0.2.0
+# → .github/workflows/release.yml runs, uploads AAB to internal track
 ```
 
-The filesystem is the source of truth. Every sync replaces Play-side content.
-
-## Observability
+The CI workflow also supports manual dispatch with a track picker:
 
 ```bash
-make status           # table of all tracks
-make version-codes    # compact per-track version map
-make reviews          # latest user reviews
+gh workflow run "Play Store Release" --ref main -f track=alpha
 ```
 
-## CI — tag-push auto-deploy
+CI never auto-promotes to production. Production is always a deliberate human `make promote-prod` on your laptop.
 
-Push a tag matching `v*` → `.github/workflows/release.yml` builds a signed AAB and uploads it to the **internal** track automatically. Promotion to alpha/beta/production is manual (use the `make promote-*` targets). The CI never auto-publishes to production.
+---
 
+## Commands cheat sheet
+
+All targets run from repo root. Run `make help` to see them in the terminal.
+
+```
+test                    Run :core unit tests
+lint                    Gradle lint
+build-aab               Signed AAB
+assemble-release        Signed APK (side-load distribution)
+release-internal        Upload + roll out to internal track
+promote-alpha           Internal → closed testing
+promote-beta            Alpha → open testing
+promote-prod PCT=0.05   Beta → production at 5% rollout
+rollout PCT=0.2         Widen staged rollout
+halt                    HALT current rollout (safe; freezes propagation)
+resume PCT=0.05         Resume a halted rollout
+status                  Show all tracks' releases
+version-codes           Print current versionCode per track
+reviews                 Fetch recent reviews
+sync-listing            Push metadata/android/ → Play (all locales, images)
+sync-listing-text       Text-only sync (fast; skips image upload)
+render-assets           Rasterize brand assets (icon, feature graphic, screenshots, mipmaps)
+```
+
+Variables:
+- `TRACK` — internal / alpha / beta / production (default depends on target)
+- `PCT` — staged rollout fraction, 0.0 < x ≤ 1.0 (1.0 auto-completes)
+- `LOCALE` — single-locale sync-listing target, e.g. `LOCALE=en-US`
+
+---
+
+## Emergency playbook
+
+**Bad production rollout — users reporting crashes**
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
-# → internal testing build appears in Play Console within ~3 min
+make halt TRACK=production   # immediate — stops propagation to more users
+# fix the bug on a branch, bump versionCode, merge to main, then:
+make release-internal
+make promote-alpha
+make promote-beta
+make promote-prod PCT=0.05   # fresh staged rollout of the good build
 ```
 
-## Things you still must do in the browser (one-time per app)
+**401 / 403 errors from publisher**
+SA isn't granted in Play Console → Users and permissions, or API isn't enabled in GCP, or ToS not accepted. See `docs/play/PLAY_CHECKLIST.md` §Prereqs.
 
-Google does not expose these to the API:
+**404 Package not found**
+App not yet created in Play Console → Create app first.
 
-- Create the app for the first time (for a brand-new package name)
-- Complete the Content Rating questionnaire
-- Complete the Data Safety declaration
-- Complete the Target Audience + Content declaration
-- Accept Play Console policy updates when Google rolls them out
+**"Only releases with status draft may be created on draft app"**
+First rollout gate — see §First rollout on a brand-new app above. You need to complete declarations + click "Start rollout" once in Play Console.
 
-After the first-time setup, everything else — release lifecycle, listing, pricing, in-app products, reviews — is fully automated from here.
+**`make release-internal` says "versionCode already used"**
+Bump `versionCode` in `app/build.gradle.kts`. Play treats every uploaded versionCode as immutable forever.
 
-## Emergency rollback
+**CI workflow fails at "Decode keystore"**
+`PLAY_KEYSTORE_BASE64` secret missing or wrong. Regenerate:
+```bash
+base64 -i ~/keystores/pulseboard.jks | gh secret set PLAY_KEYSTORE_BASE64 --repo Cramraika/pulseboard
+```
 
-Play does not have a true "rollback" button. The workflow is:
+---
 
-1. `make halt TRACK=production` — freeze current rollout immediately.
-2. Re-release a *higher versionCode* built from the last-known-good commit. Play refuses lower versionCodes.
-3. Upload + promote that new build up the ladder.
+## Things Play does NOT expose to any API (so the pipeline can't help)
 
-## Troubleshooting
+From [`docs/play/PLAY_CHECKLIST.md`](docs/play/PLAY_CHECKLIST.md) items marked ⚠️:
 
-- **401 / forbidden**: SA not yet granted in Play Console, or API not enabled in GCP.
-- **Package not found**: Play Console app hasn't been created for that package name yet (see "browser steps" above).
-- **versionCode already used**: bump it in `app/build.gradle.kts`. Play treats every versionCode as immutable once uploaded to ANY track.
-- **"ToS not accepted"**: open Play Console once, accept the API ToS banner.
+- Creating the app for the first time
+- Any of the 11 app content declarations (privacy policy URL, ads, content rating, data safety, target audience, etc.)
+- App category selection
+- Contact details
+- Creating tester email lists
+- Pre-registration campaigns
+- Accepting Play Console policy updates
+
+These are one-time per app (except policy updates). After first-time completion, your whole release lifecycle is CLI/CI driven.
