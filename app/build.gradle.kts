@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.cramraika.pulseboard"
+    namespace = "com.vagarylabs.pulseboard"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.cramraika.pulseboard"
+        applicationId = "com.vagarylabs.pulseboard"
         minSdk = 26
         targetSdk = 36
         // Stub placeholder — real engine lands in v1.1 alongside :core VoIP diagnostic work.

@@ -95,7 +95,7 @@ jobs:
       - name: Upload to Play (track=${{ steps.plan.outputs.track }})
         run: |
           python3 "$PUBLISHER" upload \
-            --package com.cramraika.pulseboard \
+            --package com.vagarylabs.pulseboard \
             --aab app/build/outputs/bundle/release/app-release.aab \
             --track "${{ steps.plan.outputs.track }}" \
             --release-name "v${{ steps.plan.outputs.version_code }}"
@@ -103,7 +103,7 @@ jobs:
       - name: Attach release notes
         run: |
           python3 "$PUBLISHER" release \
-            --package com.cramraika.pulseboard \
+            --package com.vagarylabs.pulseboard \
             --version-code ${{ steps.plan.outputs.version_code }} \
             --track "${{ steps.plan.outputs.track }}" \
             --release-name "v${{ steps.plan.outputs.version_code }}" \
@@ -114,7 +114,7 @@ jobs:
         if: steps.plan.outputs.track == 'production'
         run: |
           python3 "$PUBLISHER" rollout \
-            --package com.cramraika.pulseboard \
+            --package com.vagarylabs.pulseboard \
             --track production \
             --fraction "${{ github.event.inputs.rollout_fraction || '0.05' }}"
 

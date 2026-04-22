@@ -33,7 +33,7 @@ Brand: "pulse" (health signal) + "board" (dashboard/sheet). Part of the **Vagary
 - **Build**: Gradle Kotlin DSL; Gradle wrapper included
 - **Min SDK**: 26 (Android 8.0+)
 - **Target**: current Play SDK
-- **Package / applicationId**: `com.cramraika.pulseboard` (reserved on Play Console)
+- **Package / applicationId**: `com.vagarylabs.pulseboard` (renamed 2026-04-22 from `com.cramraika.pulseboard` to align with the Vagary Labs umbrella — pre-first-upload, so zero Play Store cost)
 - **Signing**: separate Pulseboard keystore (NOT the CN keystore). Credentials in `~/.gradle/gradle.properties` as `PULSEBOARD_*`; `.jks` at `~/keystores/pulseboard.jks`.
 - **Upload**: Google Apps Script Web App (configured per-fork — each installing team deploys their own).
 - **Packaging**: Signed APK (side-load) + AAB for Play Store when submitted.
@@ -75,7 +75,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
            Shared lineage with Cramraika/NetworkMonitorCN's :core (duplicated
            at the 2026-04-22 split); the two evolve independently from here.
 
-:app       Pulseboard application — com.cramraika.pulseboard
+:app       Pulseboard application — com.vagarylabs.pulseboard
            Current: stub (v0.1.0-stub) showing "v1.1 coming soon" splash.
            Future v1.1 will wire :core into a configurable foreground service:
            user-supplied ping targets, open email allow-list, generic

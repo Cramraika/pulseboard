@@ -1,4 +1,4 @@
-package com.cramraika.pulseboard
+package com.vagarylabs.pulseboard
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

@@ -10,7 +10,7 @@
 #   4. Play Console → Users & permissions → service-account email has Admin access
 #   5. Play Developer API ToS accepted (one-time banner in Play Console)
 
-PACKAGE  ?= com.cramraika.pulseboard
+PACKAGE  ?= com.vagarylabs.pulseboard
 TRACK    ?= internal
 PCT      ?= 1.0
 LANG     ?=
