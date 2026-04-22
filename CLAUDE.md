@@ -102,7 +102,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 - **Upload endpoint**: Google Apps Script Web App (configured per-fork). Sheet receives one row per 15-min aggregate per device.
 - **Firebase / Crashlytics**: not integrated (roadmap candidate).
 - **GitHub Sponsors**: `.github/FUNDING.yml` → github.com/sponsors/Cramraika.
-- **Play Store** (future): via `~/.claude/scripts/google-play-publisher.py`.
+- **Play Store**: via vendored `scripts/google-play-publisher.py` (source of truth: `~/.claude/scripts/google-play-publisher.py`). Service account JSON at `~/.config/google-play/sa.json` (chmod 600). CI uses `PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_KEYSTORE_BASE64` + `PLAY_KEYSTORE_PASSWORD` + `PLAY_KEY_ALIAS` + `PLAY_KEY_PASSWORD` secrets. See `RELEASING.md`.
 - **MCPs relevant for Claude sessions**: `figma`, `stitch` (iconography / UI polish), `context7` (Android docs lookup).
 
 ## Observability
@@ -142,7 +142,7 @@ Roadmap item #2 will ship `scripts/rebrand.sh` to automate steps 2-5 via prompts
 3. **Multi-endpoint adapter**: support non-Sheets uploads (webhook, Supabase, Firestore) via a pluggable writer interface.
 4. **Self-serve Sheet provisioner**: Apps Script template you deploy once to generate your receiving Sheet + Web App URL in 30 seconds.
 5. **CI/CD** (`.github/workflows/android-ci.yml`): `gradlew lint` + `:core:testDebugUnitTest` on PRs; `assembleRelease` on tag push.
-6. **Play Store submission**: AAB + store listing + submission via `google-play-publisher.py`.
+6. ~~**Play Store submission**~~ — **pipeline built 2026-04-22**: `scripts/google-play-publisher.py` (vendored copy of `~/.claude/scripts/google-play-publisher.py`), `Makefile` with `release-internal` / `promote-{alpha,beta,prod}` / `rollout` / `halt` / `resume` / `sync-listing` / `status` / `reviews` targets, `metadata/android/en-US/` holding title + descriptions + per-versionCode changelogs, `.github/workflows/release.yml` auto-uploading to internal on tag push. Service account `vagarylife@vagarylife.iam.gserviceaccount.com` granted Admin in Play Console. See `RELEASING.md` for the full runbook. First actual upload gated on Play Console app creation + content rating / data safety forms (human-only steps).
 7. **Optional Sentry/GlitchTip** for crash reporting.
 8. **Sponsor tier features**: custom branding pack, on-prem endpoint, enterprise support.
 9. **`pulseboard.build` brand site**: simple docs + install guide (once domain purchased).
@@ -154,6 +154,7 @@ Roadmap item #2 will ship `scripts/rebrand.sh` to automate steps 2-5 via prompts
 - **2026-04-19 (Phase 3)** — renamed `NetworkMonitorCN` → `pulseboard` on GitHub + local disk + git remote. Brand adopted under Vagary Labs OSS Utilities.
 - **2026-04-21 (Phase 4)** — restructured into `:core` shared library + `:app-cn` + `:app-pulseboard` to prepare for the CN/public split.
 - **2026-04-22 (Phase 5)** — split into two repos. This `pulseboard` repo keeps `:core` + public `:app` (stub). `Cramraika/NetworkMonitorCN` (private) takes `:core` (duplicated) + CN's `:app-cn` (renamed to `:app`) with the v1.1 VoIP diagnostic work.
+- **2026-04-22 (Phase 6)** — Play Store pipeline stood up: Makefile + vendored publisher script + CI release workflow + `metadata/android/` listing source-of-truth + GitHub Actions secrets wired. Roadmap item #6 delivered except for the one-time Play Console browser steps (app creation, content rating, data safety).
 
 ## Known Limitations
 

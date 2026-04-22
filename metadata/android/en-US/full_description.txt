@@ -1,0 +1,23 @@
+Pulseboard answers "why is my team's network bad today?"
+
+A lightweight background service that samples internet quality — latency, jitter, packet loss, and Wi-Fi context — on employee devices and uploads 15-minute aggregates to a Google Sheet your team owns. No dashboards to host. No accounts to manage. The Sheet is the telemetry.
+
+WHAT IT MEASURES
+• ICMP/UDP latency to configurable targets
+• Packet loss and jitter
+• Wi-Fi BSSID, RSSI, channel, visible APs
+• VPN state and network type transitions
+
+WHY IT EXISTS
+Most "network monitor" apps are built for IT departments with dashboards and alerting pipelines. Pulseboard is for small-to-mid teams who just want a spreadsheet they can pivot: which employees, which hours, which access points correlate with call drops?
+
+FORK-AND-REBRAND
+Open source (MIT). Fork the repo, swap the upload endpoint to your own Apps Script or webhook, replace the launcher icon, ship. Designed for teams who want their own branded install — not another SaaS dependency.
+
+REQUIRES
+Android 8.0+ (API 26). Location permission is required for Wi-Fi BSSID access — Android enforces this system-wide for Wi-Fi metadata.
+
+PRIVACY
+Pulseboard collects only network diagnostics and a user-configured identifier (recommended: hashed email). No ads. No third-party analytics. Your data goes to your Sheet and nowhere else.
+
+Part of the Vagary Labs open-source utilities.
