@@ -375,6 +375,44 @@ def _read_if_exists(path: Path) -> Optional[str]:
     return path.read_text().strip() if path.exists() else None
 
 
+def cmd_details(args: argparse.Namespace) -> None:
+    """Read or update app details (contact website / email / phone, default language).
+
+    Play Dev API v3 `edits.details` resource covers the Store presence →
+    Contact details + default language. Privacy policy URL is NOT exposed
+    here (Play Console UI only — see docs/play/PLAY_CHECKLIST.md §2.1).
+    """
+    service = build_service()
+    edit_id = _edit_begin(service, args.package)
+    try:
+        if args.get:
+            d = service.edits().details().get(
+                packageName=args.package, editId=edit_id
+            ).execute()
+            print(json.dumps(d, indent=2))
+            return
+        body: dict = {}
+        if args.website is not None:
+            body["contactWebsite"] = args.website
+        if args.email is not None:
+            body["contactEmail"] = args.email
+        if args.phone is not None:
+            body["contactPhone"] = args.phone
+        if args.default_language is not None:
+            body["defaultLanguage"] = args.default_language
+        if not body:
+            sys.stderr.write("Nothing to update — pass --website / --email / --phone / --default-language or --get\n")
+            sys.exit(2)
+        service.edits().details().update(
+            packageName=args.package, editId=edit_id, body=body
+        ).execute()
+        _edit_commit(service, args.package, edit_id)
+        print(f"details updated: {', '.join(body.keys())}")
+    except HttpError as e:
+        sys.stderr.write(f"details op failed: {e}\n")
+        sys.exit(3)
+
+
 def cmd_sync_listing(args: argparse.Namespace) -> None:
     base = Path(args.dir).resolve()
     if not base.exists():
@@ -528,6 +566,16 @@ def main() -> None:
     rs.add_argument("--fraction", required=True,
                     help="0.0 < f <= 1.0 — what to resume at")
 
+    dt = sub.add_parser("details",
+                        help="Read/update contact website, email, phone, default language")
+    dt.add_argument("--package", required=True)
+    dt.add_argument("--get", action="store_true", help="Read current details as JSON")
+    dt.add_argument("--website", default=None, help="Contact website URL")
+    dt.add_argument("--email", default=None, help="Contact email (public on store)")
+    dt.add_argument("--phone", default=None, help="Contact phone (public; optional)")
+    dt.add_argument("--default-language", default=None,
+                    help="Default listing locale, e.g. en-US")
+
     sl = sub.add_parser("sync-listing",
                         help="Push metadata/<locale>/{title,short_description,full_description,video,images/*}")
     sl.add_argument("--package", required=True)
@@ -552,6 +600,7 @@ def main() -> None:
         "halt": cmd_halt,
         "resume": cmd_resume,
         "sync-listing": cmd_sync_listing,
+        "details": cmd_details,
     }[cmd](args)
 
 
