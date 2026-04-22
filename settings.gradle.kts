@@ -24,5 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Pulseboard"
 include(":core")
-include(":app-cn")
-include(":app-pulseboard")
+include(":app")
