@@ -108,7 +108,10 @@ def cmd_upload(args: argparse.Namespace) -> None:
                 .execute()
             )
         version_code = result["versionCode"]
-        # Attach to track
+        # Attach to track. Upload always creates a DRAFT release — safe by
+        # default, works on brand-new "draft apps" (where Play rejects any
+        # non-draft first release), and matches fastlane supply's two-phase
+        # model. To roll out, run `release --status completed` afterwards.
         service.edits().tracks().update(
             packageName=args.package,
             editId=edit_id,
@@ -118,14 +121,14 @@ def cmd_upload(args: argparse.Namespace) -> None:
                 "releases": [
                     {
                         "name": args.release_name or f"v{version_code}",
-                        "status": "draft" if args.track == "production" else "completed",
+                        "status": args.status,
                         "versionCodes": [str(version_code)],
                     }
                 ],
             },
         ).execute()
         _edit_commit(service, args.package, edit_id)
-        print(f"Uploaded versionCode={version_code} to {args.package}:{args.track}")
+        print(f"Uploaded versionCode={version_code} to {args.package}:{args.track} (status={args.status})")
     except HttpError as e:
         sys.stderr.write(f"Upload failed: {e}\n")
         sys.exit(3)
@@ -478,6 +481,9 @@ def main() -> None:
     up.add_argument("--track", default="internal",
                     choices=["internal", "alpha", "beta", "production"])
     up.add_argument("--release-name", default=None)
+    up.add_argument("--status", default="draft",
+                    choices=["draft", "completed", "inProgress", "halted"],
+                    help="Default draft (safe); use `release` to roll out to testers/users")
 
     rel = sub.add_parser("release", help="Promote or create a release")
     rel.add_argument("--package", required=True)

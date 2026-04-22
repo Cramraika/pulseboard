@@ -73,3 +73,4 @@ keystore.properties
 
 # Freshly baked APKs (go to GitHub Releases, not git)
 NetworkMonitorCN-*.apk
+__pycache__/

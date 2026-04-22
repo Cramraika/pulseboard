@@ -43,8 +43,13 @@ assemble-release: ## Signed APK — side-load distribution (GitHub Releases)
 
 ## ---------- upload to Play ----------
 
-release-internal: build-aab  ## Upload AAB → internal testing track
-	$(PUBLISH) upload --package $(PACKAGE) --aab $(AAB) --track internal
+release-internal: build-aab  ## Upload AAB → internal testing track (draft → rolled out)
+	$(PUBLISH) upload --package $(PACKAGE) --aab $(AAB) --track internal --status draft
+	@vc=$$($(PUBLISH) version-codes --package $(PACKAGE) | awk '/^internal:/ {print $$2}' | cut -d, -f1); \
+	 notes_file=metadata/android/en-US/changelogs/$$vc.txt; \
+	 notes=$$(test -f $$notes_file && cat $$notes_file || echo "Release v$$vc"); \
+	 $(PUBLISH) release --package $(PACKAGE) --version-code $$vc --track internal \
+	     --release-name "v$$vc" --status completed --notes-en "$$notes"
 
 promote-alpha:   ## Promote current internal versionCode → closed testing (alpha)
 	@vc=$$($(PUBLISH) version-codes --package $(PACKAGE) | awk '/^internal:/ {print $$2}' | cut -d, -f1); \
@@ -96,6 +101,11 @@ sync-listing:    ## Push metadata/android/ → Play (all locales, includes image
 sync-listing-text: ## Text-only sync (fast; skips image upload)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android --skip-images \
 	    $(if $(LOCALE),--lang $(LOCALE),)
+
+## ---------- assets ----------
+
+render-assets:   ## Rasterize brand assets: 512 icon, 1024x500 feature, mipmaps, screenshots
+	DYLD_LIBRARY_PATH=/opt/homebrew/lib python3 scripts/render_brand_assets.py
 
 ## ---------- housekeeping ----------
 
