@@ -13,7 +13,7 @@
 PACKAGE  ?= com.vagarylabs.pulseboard
 TRACK    ?= internal
 PCT      ?= 1.0
-LANG     ?=
+LOCALE   ?=
 AAB      := app/build/outputs/bundle/release/app-release.aab
 PUBLISH  := python3 $(HOME)/.claude/scripts/google-play-publisher.py
 GRADLE   := JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew
@@ -91,11 +91,11 @@ reviews:         ## Fetch recent reviews
 
 sync-listing:    ## Push metadata/android/ → Play (all locales, includes images)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android \
-	    $(if $(LANG),--lang $(LANG),)
+	    $(if $(LOCALE),--lang $(LOCALE),)
 
 sync-listing-text: ## Text-only sync (fast; skips image upload)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android --skip-images \
-	    $(if $(LANG),--lang $(LANG),)
+	    $(if $(LOCALE),--lang $(LOCALE),)
 
 ## ---------- housekeeping ----------
 

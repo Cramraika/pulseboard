@@ -25,8 +25,8 @@ metadata/android/
 
 ```bash
 make sync-listing       # all locales under metadata/android/
-make sync-listing LANG=en-US   # one locale only
-make sync-listing SKIP_IMAGES=1  # text only, faster
+make sync-listing LOCALE=en-US   # one locale only
+make sync-listing-text           # text only, faster
 ```
 
 Every sync replaces the Play-side copy with what's on disk. Treat Play Console as a read-only mirror.
