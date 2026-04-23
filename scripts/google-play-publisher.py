@@ -48,6 +48,15 @@ except ImportError as e:
 SCOPES = ["https://www.googleapis.com/auth/androidpublisher"]
 DEFAULT_SA_PATH = Path.home() / ".config" / "google-play" / "sa.json"
 
+# Admin SDK scopes — only requested when `members` command is used, and only
+# valid for Workspace-domain groups (NOT public googlegroups.com groups).
+# Requires the SA to have domain-wide delegation enabled in admin.google.com
+# and an impersonated admin email passed via --admin-email or $PLAY_ADMIN_EMAIL.
+ADMIN_DIRECTORY_SCOPES = [
+    "https://www.googleapis.com/auth/admin.directory.group.member",
+    "https://www.googleapis.com/auth/admin.directory.group.readonly",
+]
+
 
 def build_service() -> Any:
     sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
@@ -375,6 +384,79 @@ def _read_if_exists(path: Path) -> Optional[str]:
     return path.read_text().strip() if path.exists() else None
 
 
+def _build_directory_service(admin_email: str) -> Any:
+    """Build an Admin SDK Directory service impersonating the given admin.
+
+    Prerequisites (all one-time per Workspace domain):
+      1. Admin SDK API enabled in GCP project (already done 2026-04-22 for vagarylife)
+      2. Service account has domain-wide delegation in admin.google.com
+         (Security → API Controls → Domain-wide Delegation → Add client with
+         the SA's oauth_client_id + scopes above)
+      3. `admin_email` is a super admin of the Workspace domain whose identity
+         the SA impersonates
+    """
+    sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
+    creds = service_account.Credentials.from_service_account_file(
+        str(sa_path), scopes=ADMIN_DIRECTORY_SCOPES,
+    ).with_subject(admin_email)
+    return build("admin", "directory_v1", credentials=creds, cache_discovery=False)
+
+
+def cmd_members(args: argparse.Namespace) -> None:
+    """Manage members of a Workspace-domain Google Group via Admin SDK.
+
+    Requires domain-wide delegation + an admin email to impersonate. Does NOT
+    work for public googlegroups.com groups — those need browser-only
+    management at groups.google.com.
+
+    Usage:
+        members --group testers@vagarylife.com --admin chinmay@vagarylife.com --list
+        members --group testers@vagarylife.com --admin chinmay@vagarylife.com --add foo@gmail.com
+        members --group testers@vagarylife.com --admin chinmay@vagarylife.com --remove foo@gmail.com
+    """
+    admin = args.admin or os.environ.get("PLAY_ADMIN_EMAIL")
+    if not admin:
+        sys.stderr.write("--admin <admin@workspace.domain> (or PLAY_ADMIN_EMAIL env) required.\n")
+        sys.exit(2)
+    try:
+        svc = _build_directory_service(admin)
+    except Exception as e:
+        sys.stderr.write(
+            f"Admin SDK auth failed: {e}\n"
+            "Check: (1) Admin SDK API enabled, (2) Domain-wide delegation configured, "
+            "(3) --admin is a Workspace super admin.\n"
+        )
+        sys.exit(3)
+
+    try:
+        if args.list:
+            resp = svc.members().list(groupKey=args.group, maxResults=500).execute()
+            members = resp.get("members", [])
+            if args.json:
+                print(json.dumps(members, indent=2))
+                return
+            if not members:
+                print(f"(no members in {args.group})")
+                return
+            for m in members:
+                print(f"  {m.get('email')}  ({m.get('role', 'MEMBER')}, {m.get('type', 'USER')})")
+            return
+        if args.add:
+            body = {"email": args.add, "role": args.role or "MEMBER"}
+            r = svc.members().insert(groupKey=args.group, body=body).execute()
+            print(f"added {r.get('email')} to {args.group} as {r.get('role')}")
+            return
+        if args.remove:
+            svc.members().delete(groupKey=args.group, memberKey=args.remove).execute()
+            print(f"removed {args.remove} from {args.group}")
+            return
+        sys.stderr.write("Pass --list, --add <email>, or --remove <email>\n")
+        sys.exit(2)
+    except HttpError as e:
+        sys.stderr.write(f"members op failed: {e}\n")
+        sys.exit(3)
+
+
 def cmd_testers(args: argparse.Namespace) -> None:
     """Get or set the testers list (Google Groups only) attached to a track.
 
@@ -606,6 +688,18 @@ def main() -> None:
     rs.add_argument("--fraction", required=True,
                     help="0.0 < f <= 1.0 — what to resume at")
 
+    mb = sub.add_parser("members",
+                        help="Manage Google Group membership via Admin SDK (Workspace groups only)")
+    mb.add_argument("--group", required=True,
+                    help="Workspace-domain group email, e.g. testers@vagarylife.com")
+    mb.add_argument("--admin", default=None,
+                    help="Workspace super admin to impersonate (or set PLAY_ADMIN_EMAIL env)")
+    mb.add_argument("--list", action="store_true")
+    mb.add_argument("--add", default=None, metavar="EMAIL")
+    mb.add_argument("--remove", default=None, metavar="EMAIL")
+    mb.add_argument("--role", default="MEMBER", choices=["MEMBER", "MANAGER", "OWNER"])
+    mb.add_argument("--json", action="store_true")
+
     ts = sub.add_parser("testers",
                         help="Get/set Google-Group tester lists on a track (individual emails: Play Console UI only)")
     ts.add_argument("--package", required=True)
@@ -652,6 +746,7 @@ def main() -> None:
         "sync-listing": cmd_sync_listing,
         "details": cmd_details,
         "testers": cmd_testers,
+        "members": cmd_members,
     }[cmd](args)
 
 

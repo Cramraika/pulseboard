@@ -86,16 +86,19 @@ Given the internal-track API gap, our canonical testing flow for any Vagary Labs
 
 ---
 
-## If you want even more automation (Google Workspace path)
+## Closing the last tester-management gap (Workspace Admin SDK)
 
-If `vagarylife.com` is a Google Workspace domain, the Admin SDK `admin.directory.members` API can add/remove members to/from Google Groups programmatically. Setup is 1-2 hours:
+Implemented 2026-04-22 via `publisher members` command + `docs/play/WORKSPACE_SETUP.md`.
 
-1. Enable Google Workspace Admin SDK API in GCP project
-2. Create a new service account (or add scope to existing)
-3. Grant domain-wide delegation in Workspace Admin Console
-4. Extend the publisher with a `members` command — `make members GROUP=vagarylabs-tester ADD=chinu@gmail.com`
+- ✅ Admin SDK API enabled in GCP project `vagarylife`
+- ✅ Publisher has `members --add / --remove / --list` subcommand (Admin SDK Directory API)
+- ⏳ Requires one-time browser setup: create Workspace-domain group at `admin.google.com` + grant domain-wide delegation to the SA. See `WORKSPACE_SETUP.md`.
+- ⏳ Requires `PLAY_ADMIN_EMAIL` env var set to a Workspace super admin email for impersonation.
 
-This closes the last tester-management gap. Only worth it if you anticipate frequent tester list churn. For stable small teams, groups.google.com UI (30 sec per change) is simpler.
+After that one-time setup, tester add/remove across every Vagary Labs app is a single CLI call forever. No browser ever again for tester management.
+
+### Why public googlegroups.com groups won't work
+Admin SDK `admin.directory.members` only manages groups that live **inside** a Workspace domain. The public `vagarylabs-tester@googlegroups.com` group has no public API for membership. Must be recreated as `testers@vagarylife.com` (or similar) inside the Workspace domain.
 
 ---
 
