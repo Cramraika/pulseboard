@@ -18,7 +18,7 @@ Legend for commands: `make X` runs in the app repo root; `python3 scripts/google
 |---|---|---|---|
 | 1.1 | Create a new release | ✅ | `make build-aab` → `make release-internal` |
 | 1.2 | Preview and confirm the release | ✅ | Publisher `release` command with `--status completed` — Play's "preview" is a no-op when release notes come from `metadata/android/en-US/changelogs/<vc>.txt` |
-| 1.3 | Select testers | 🟡 | Play Console → Internal testing → Testers tab. Create email list once; future runs inherit it. (Play Dev API v3 exposes "user lists" only at account scope, not track-attached; browser UI is the ergonomic source of truth.) |
+| 1.3 | Select testers | 🟡 | `make testers TRACK=internal --set-groups <csv>` for Google Groups (API-doable). For ad-hoc individual emails (the common solo-dev case): Play Console → Internal testing → Testers tab → Create email list. |
 | 1.4 | **Hidden gate**: "draft app" state unlock | ⚠️ | **First rollout ever on a brand-new app** requires the Set-up-your-app declarations (§2 below) to be marked Done in Play Console + clicking **"Start rollout to Internal testing"** once. After that one click, every future release ships via `make release-internal` with no browser. |
 
 **Outcome after 1.1–1.4 done once**: tag-push CI (`git tag v2 && git push --tags`) or local `make release-internal` puts a new build in front of your tester list in ~3 minutes, no review, no browser.
@@ -49,9 +49,10 @@ All items in this section are completed once per app in Play Console (browser). 
 
 | # | Google's step | Tag | Our support |
 |---|---|---|---|
-| 2.12 | Select an app category | ⚠️ | Browser dropdown. "Tools" (primary) for most Vagary Labs utilities; "Productivity" for Pulseboard-class. |
-| 2.13 | Provide contact details | ⚠️ | Browser: website URL (GitHub repo link) + email. Phone optional. |
-| 2.14 | Set up your Store Listing | ✅ | `make sync-listing` pushes title, short/full descriptions, icon, feature graphic, screenshots from `metadata/android/en-US/`. Source of truth: filesystem. |
+| 2.12 | Select an app category | ⚠️ | Browser dropdown. "Tools" (primary) for most Vagary Labs utilities; "Productivity" for Pulseboard-class. Tags also browser-only (not API-exposed). |
+| 2.13 | Provide contact details | ✅ | `make details` → publisher sets `contactWebsite`/`contactEmail`/`contactPhone`/`defaultLanguage` via `edits.details.update`. |
+| 2.14 | Set up your Store Listing | ✅ | `make sync-listing` pushes title, short/full descriptions, icon (512×512), feature graphic (1024×500), **phone screenshots (1080×1920, min 2, max 8)**, **7-inch tablet screenshots (1200×1920, REQUIRED \*)**, **10-inch tablet screenshots (1600×2560, REQUIRED \*)** from `metadata/android/en-US/`. Source of truth: filesystem. Chromebook + Android XR screenshots and promo videos optional. |
+| 2.15 | External marketing toggle | ⚠️ | Browser only. Default ON ("Advertise outside Google Play"). Takes up to 60 days to propagate. |
 
 ---
 
@@ -64,7 +65,7 @@ All items in this section are completed once per app in Play Console (browser). 
 | 3.1 | Complete the initial setup tasks first | ⚠️ | §2 above — same declarations gate. |
 | 3.2 | Set up your closed test track | ✅ | Track exists by default on every app; nothing to "set up" beyond attaching a release. |
 | 3.3 | Select countries and regions | 🟡 | `edits.tracks.update` supports country lists; currently we don't expose this via the publisher script — default "all countries" applies. Add `--countries` flag if a per-app restriction is needed. |
-| 3.4 | Select testers | 🟡 | Same as 1.3 — browser email list. |
+| 3.4 | Select testers | 🟡 | `make testers TRACK=alpha --set-groups <csv-of-google-groups>` via `edits.testers.update`. **Google Groups only** — individual emails need Play Console UI. |
 | 3.5 | Create and roll out a release | ✅ | `make promote-alpha` — pulls current internal versionCode, attaches it to alpha track as `status=completed`, triggers Google review. |
 | 3.6 | Preview and confirm | ✅ | Embedded in `promote-alpha`. |
 | 3.7 | Send the release to Google for review | ✅ | Automatic side effect of rolling out to alpha/beta/production — Google review starts the moment the release is not a draft. Review timeline: hours to 7 days typical. |
@@ -91,6 +92,28 @@ All items in this section are completed once per app in Play Console (browser). 
 > Build excitement for your app with pre-registration.
 
 We don't use pre-registration for Vagary Labs OSS utilities (free, OSS, no hype-launch cycle). If ever needed: Play Console only — no API coverage. Skip.
+
+---
+
+## Publisher API command reference
+
+| Command | What it does |
+|---|---|
+| `make status` | Show all tracks' releases |
+| `make version-codes` | Current versionCode per track |
+| `make reviews` | Recent user reviews |
+| `make details ARGS="--get"` _(via publisher)_ | Read contact details + default language |
+| `make details ARGS="--email X --website Y --default-language en-US"` | Write contact fields + default locale |
+| `make testers TRACK=internal ARGS="--get"` | Show current Google Groups on a track |
+| `make testers TRACK=internal ARGS="--set-groups emails@googlegroups.com"` | Set tester Google Groups on a track |
+| `make release-internal` | Build AAB → upload draft → roll out to internal |
+| `make promote-alpha/beta/prod` | Move current versionCode across tracks |
+| `make rollout PCT=0.1 TRACK=production` | Staged rollout fraction |
+| `make halt TRACK=production` | HALT current rollout |
+| `make resume TRACK=production PCT=0.05` | Resume halted rollout |
+| `make sync-listing [LOCALE=en-US]` | Push metadata + all images |
+| `make sync-listing-text` | Skip images; faster |
+| `make render-assets` | Rasterize icon, feature graphic, phone + tablet screenshots, mipmap webps |
 
 ---
 

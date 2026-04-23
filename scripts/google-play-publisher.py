@@ -375,6 +375,46 @@ def _read_if_exists(path: Path) -> Optional[str]:
     return path.read_text().strip() if path.exists() else None
 
 
+def cmd_testers(args: argparse.Namespace) -> None:
+    """Get or set the testers list (Google Groups only) attached to a track.
+
+    Play Dev API `edits.testers` only accepts `googleGroups` (email addresses
+    of Google Groups) and `autoEnrolledAndroidGroups` (org-managed). Individual
+    tester emails are not exposed via API — use Play Console UI for those.
+
+    Usage:
+        testers --package <pkg> --track internal --get
+        testers --package <pkg> --track internal --set-groups list@group.example.com,another@group.example.com
+        testers --package <pkg> --track internal --clear
+    """
+    service = build_service()
+    edit_id = _edit_begin(service, args.package)
+    try:
+        if args.get:
+            r = service.edits().testers().get(
+                packageName=args.package, editId=edit_id, track=args.track,
+            ).execute()
+            print(json.dumps(r or {}, indent=2))
+            return
+        body: dict = {}
+        if args.clear:
+            body = {"googleGroups": []}
+        elif args.set_groups:
+            groups = [g.strip() for g in args.set_groups.split(",") if g.strip()]
+            body = {"googleGroups": groups}
+        else:
+            sys.stderr.write("Pass --get, --clear, or --set-groups <csv>\n")
+            sys.exit(2)
+        r = service.edits().testers().update(
+            packageName=args.package, editId=edit_id, track=args.track, body=body,
+        ).execute()
+        _edit_commit(service, args.package, edit_id)
+        print(f"testers {args.track} updated → googleGroups={body.get('googleGroups', [])}")
+    except HttpError as e:
+        sys.stderr.write(f"testers op failed: {e}\n")
+        sys.exit(3)
+
+
 def cmd_details(args: argparse.Namespace) -> None:
     """Read or update app details (contact website / email / phone, default language).
 
@@ -566,6 +606,16 @@ def main() -> None:
     rs.add_argument("--fraction", required=True,
                     help="0.0 < f <= 1.0 — what to resume at")
 
+    ts = sub.add_parser("testers",
+                        help="Get/set Google-Group tester lists on a track (individual emails: Play Console UI only)")
+    ts.add_argument("--package", required=True)
+    ts.add_argument("--track", required=True, choices=list(TRACK_NAMES))
+    ts.add_argument("--get", action="store_true")
+    ts.add_argument("--set-groups", default=None,
+                    help="Comma-separated Google Group emails (e.g. testers@acme.com)")
+    ts.add_argument("--clear", action="store_true",
+                    help="Remove all Google Groups from this track")
+
     dt = sub.add_parser("details",
                         help="Read/update contact website, email, phone, default language")
     dt.add_argument("--package", required=True)
@@ -601,6 +651,7 @@ def main() -> None:
         "resume": cmd_resume,
         "sync-listing": cmd_sync_listing,
         "details": cmd_details,
+        "testers": cmd_testers,
     }[cmd](args)
 
 

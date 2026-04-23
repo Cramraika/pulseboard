@@ -187,76 +187,193 @@ def _load_fonts(sizes: list[int]) -> list[ImageFont.FreeTypeFont]:
     return [ImageFont.load_default() for _ in sizes]
 
 
-def write_phone_screenshots() -> None:
-    """Render 2 phone-sized screenshots (1080×1920 portrait, Play-compliant).
-
-    The stub app currently shows a splash — render a faithful tile of it, plus
-    a second "roadmap" tile that honestly communicates the current build state.
-    These are replaceable once v1.1 has a real UI to capture with screencap.
+def _render_tile(W: int, H: int, concept: str) -> Image.Image:
+    """Generate one marketing tile at (W,H). Concept selects content.
+    Shared layout kernel so phone / tablet / chromebook all emit consistent art.
     """
-    W, H = 1080, 1920
     BG = BRAND_DARK
     PRIMARY = BRAND_PRIMARY
     TEXT = BRAND_TEXT_ON_DARK
     MUTED = "#9CAAC8"
 
-    # --- Screenshot 1: splash (mirrors app/src/main/res/layout/activity_main.xml) ---
-    shot1 = Image.new("RGB", (W, H), BG)
-    draw = ImageDraw.Draw(shot1)
+    canvas = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(canvas)
 
-    mark = render_icon_png(360)
-    radius = 72
-    mask = Image.new("L", mark.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, mark.size[0], mark.size[1]), radius=radius, fill=255
-    )
-    shot1.paste(mark, ((W - 360) // 2, 560), mask)
+    # Scale fonts by the smaller dimension so 1200×1920 and 2048×2732 both look right.
+    s = min(W, H) / 1080
+    f_title = _load_fonts([int(130 * s)])[0]
+    f_sub = _load_fonts([int(52 * s)])[0]
+    f_body = _load_fonts([int(44 * s)])[0]
+    f_cap = _load_fonts([int(40 * s)])[0]
+    f_item = _load_fonts([int(52 * s)])[0]
+    f_h = _load_fonts([int(96 * s)])[0]
 
-    f_title, f_sub, f_body = _load_fonts([130, 52, 44])
-    _cdraw = ImageDraw.Draw(shot1)
-
-    def _centered(y: int, text: str, font, fill) -> None:
+    def _centered(y, text, font, fill):
         try:
-            w = int(_cdraw.textlength(text, font=font))
+            w = int(draw.textlength(text, font=font))
         except Exception:
             w = font.getsize(text)[0]
-        _cdraw.text(((W - w) // 2, y), text, font=font, fill=fill)
+        draw.text(((W - w) // 2, y), text, font=font, fill=fill)
 
-    _centered(1000, "Pulseboard", f_title, PRIMARY)
-    _centered(1160, "Network health vitals for your team", f_sub, TEXT)
-    _centered(1400, "Shared engine: ready.", f_body, MUTED)
-    _centered(1460, "Public app build: v1.1 (coming soon).", f_body, MUTED)
+    if concept == "splash":
+        mark_size = int(360 * s)
+        mark = render_icon_png(mark_size)
+        radius = int(72 * s)
+        mask = Image.new("L", mark.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle(
+            (0, 0, mark.size[0], mark.size[1]), radius=radius, fill=255
+        )
+        canvas.paste(mark, ((W - mark_size) // 2, int(H * 0.29)), mask)
+        _centered(int(H * 0.52), "Pulseboard", f_title, PRIMARY)
+        _centered(int(H * 0.60), "Network health vitals for your team", f_sub, TEXT)
+        _centered(int(H * 0.73), "Shared engine: ready.", f_body, MUTED)
+        _centered(int(H * 0.76), "Public app build: v1.1 (coming soon).", f_body, MUTED)
 
-    # --- Screenshot 2: "what it measures" roadmap tile ---
-    shot2 = Image.new("RGB", (W, H), BG)
-    d2 = ImageDraw.Draw(shot2)
-    f_h, f_item, f_cap = _load_fonts([96, 52, 40])
-    d2.text((80, 180), "What it\nmeasures", font=f_h, fill=PRIMARY)
+    elif concept == "measures":
+        draw.text((int(80 * s), int(180 * s)), "What it\nmeasures", font=f_h, fill=PRIMARY)
+        items = [
+            ("Latency", "RTT to your targets — p50, p95, p99"),
+            ("Packet loss", "Sample-window aggregates"),
+            ("Jitter", "Connection stability over time"),
+            ("Wi-Fi context", "BSSID, RSSI, channel, visible APs"),
+            ("VPN + net type", "Every sample tagged"),
+        ]
+        y = int(640 * s)
+        for title, desc in items:
+            draw.rectangle(
+                (int(80 * s), y, int(120 * s), y + int(8 * s)), fill=PRIMARY
+            )
+            draw.text((int(160 * s), y - int(20 * s)), title, font=f_item, fill=TEXT)
+            draw.text(
+                (int(160 * s), y + int(44 * s)), desc, font=f_cap, fill=MUTED
+            )
+            y += int(180 * s)
+        draw.text(
+            (int(80 * s), H - int(180 * s)),
+            "Uploads to your Google Sheet.", font=f_cap, fill=MUTED,
+        )
+        draw.text(
+            (int(80 * s), H - int(130 * s)),
+            "No backend. No accounts. Just vitals.", font=f_cap, fill=MUTED,
+        )
 
-    items = [
-        ("Latency", "RTT to your targets — p50, p95, p99"),
-        ("Packet loss", "Sample-window aggregates"),
-        ("Jitter", "Connection stability over time"),
-        ("Wi-Fi context", "BSSID, RSSI, channel, visible APs"),
-        ("VPN + net type", "Every sample tagged"),
-    ]
-    y = 640
-    for title, desc in items:
-        d2.rectangle((80, y, 120, y + 8), fill=PRIMARY)
-        d2.text((160, y - 20), title, font=f_item, fill=TEXT)
-        d2.text((160, y + 44), desc, font=f_cap, fill=MUTED)
-        y += 180
+    elif concept == "your_sheet":
+        draw.text(
+            (int(80 * s), int(180 * s)),
+            "Your data,\nyour Sheet.", font=f_h, fill=PRIMARY,
+        )
+        draw.text(
+            (int(80 * s), int(640 * s)),
+            "Pulseboard has no backend.\n"
+            "No accounts. No dashboards to host.",
+            font=f_item, fill=TEXT,
+        )
+        # simple "sheet" illustration — rows of bars
+        row_y = int(1000 * s)
+        for i, (label, value_w) in enumerate([
+            ("2026-04-22 09:00", 0.55),
+            ("2026-04-22 09:15", 0.72),
+            ("2026-04-22 09:30", 0.31),
+            ("2026-04-22 09:45", 0.68),
+            ("2026-04-22 10:00", 0.90),
+        ]):
+            draw.text(
+                (int(80 * s), row_y + i * int(90 * s)),
+                label, font=f_cap, fill=MUTED,
+            )
+            bar_x = int(560 * s)
+            bar_w = int((W - bar_x - int(80 * s)) * value_w)
+            draw.rectangle(
+                (bar_x, row_y + i * int(90 * s) + int(4 * s),
+                 bar_x + bar_w, row_y + i * int(90 * s) + int(52 * s)),
+                fill=PRIMARY,
+            )
+        draw.text(
+            (int(80 * s), H - int(180 * s)),
+            "Pivot by user, hour, access point.", font=f_cap, fill=MUTED,
+        )
+        draw.text(
+            (int(80 * s), H - int(130 * s)),
+            "Find the why behind bad calls.", font=f_cap, fill=MUTED,
+        )
 
-    d2.text((80, H - 180), "Uploads to your Google Sheet.", font=f_cap, fill=MUTED)
-    d2.text((80, H - 130), "No backend. No accounts. Just vitals.", font=f_cap, fill=MUTED)
+    elif concept == "fork_rebrand":
+        draw.text(
+            (int(80 * s), int(180 * s)),
+            "Fork it.\nRebrand it.", font=f_h, fill=PRIMARY,
+        )
+        draw.text(
+            (int(80 * s), int(640 * s)),
+            "Open-source (MIT).\n"
+            "Swap the endpoint,\n"
+            "the icon, the name.", font=f_item, fill=TEXT,
+        )
+        draw.text(
+            (int(80 * s), int(1100 * s)),
+            "Your own branded install —", font=f_cap, fill=MUTED,
+        )
+        draw.text(
+            (int(80 * s), int(1150 * s)),
+            "not another SaaS dependency.", font=f_cap, fill=MUTED,
+        )
+        # Simple code-ish block
+        block_y = int(1300 * s)
+        draw.rectangle(
+            (int(80 * s), block_y, W - int(80 * s), block_y + int(360 * s)),
+            fill="#121826",
+        )
+        code_lines = [
+            "$ bash bootstrap.sh \\",
+            "    --app-name MyProbe \\",
+            "    --package com.acme.myprobe",
+        ]
+        for i, line in enumerate(code_lines):
+            draw.text(
+                (int(110 * s), block_y + int(40 * s) + i * int(60 * s)),
+                line, font=f_cap, fill=TEXT,
+            )
 
-    # Save both
+    return canvas
+
+
+def write_phone_screenshots() -> None:
+    """Render 4 phone-sized screenshots (1080×1920 portrait)."""
+    W, H = 1080, 1920
     out_dir = REPO_ROOT / "metadata" / "android" / "en-US" / "images" / "phoneScreenshots"
     out_dir.mkdir(parents=True, exist_ok=True)
-    shot1.save(out_dir / "01_splash.png", "PNG", optimize=True)
-    shot2.save(out_dir / "02_measures.png", "PNG", optimize=True)
-    print(f"  {out_dir.relative_to(REPO_ROOT)}/01_splash.png      (1080×1920)")
-    print(f"  {out_dir.relative_to(REPO_ROOT)}/02_measures.png    (1080×1920)")
+    for i, concept in enumerate(["splash", "measures", "your_sheet", "fork_rebrand"], start=1):
+        img = _render_tile(W, H, concept)
+        path = out_dir / f"{i:02d}_{concept}.png"
+        img.save(path, "PNG", optimize=True)
+        print(f"  {path.relative_to(REPO_ROOT)}  ({W}×{H})")
+    # Remove any legacy files that don't match the new numbered set
+    for stale in out_dir.glob("*.png"):
+        if stale.name[:2] not in {"01","02","03","04"}:
+            stale.unlink(missing_ok=True)
+
+
+def write_tablet_screenshots() -> None:
+    """Render required 7-inch and 10-inch tablet screenshots.
+
+    Play Console requires both (marked *). 7-inch portrait ≈ 1200×1920,
+    10-inch portrait ≈ 1600×2560. Same concepts as phone, re-laid out.
+    """
+    for tablet, (W, H), min_count in [
+        ("sevenInchScreenshots", (1200, 1920), 2),
+        ("tenInchScreenshots", (1600, 2560), 2),
+    ]:
+        out_dir = REPO_ROOT / "metadata" / "android" / "en-US" / "images" / tablet
+        out_dir.mkdir(parents=True, exist_ok=True)
+        # Render the same 4 concepts at the larger resolution — Play accepts up to 8.
+        for i, concept in enumerate(["splash", "measures", "your_sheet", "fork_rebrand"], start=1):
+            img = _render_tile(W, H, concept)
+            path = out_dir / f"{i:02d}_{concept}.png"
+            img.save(path, "PNG", optimize=True)
+            print(f"  {path.relative_to(REPO_ROOT)}  ({W}×{H})")
+        for stale in out_dir.glob("*.png"):
+            if stale.name[:2] not in {"01","02","03","04"}:
+                stale.unlink(missing_ok=True)
+    _ = min_count  # reserved for future use; kept for self-documentation
 
 
 def main() -> None:
@@ -264,6 +381,7 @@ def main() -> None:
     write_store_icon()
     write_feature_graphic()
     write_phone_screenshots()
+    write_tablet_screenshots()
     write_mipmap_webps()
     print("done.")
 

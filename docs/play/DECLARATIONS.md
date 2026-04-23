@@ -1,100 +1,116 @@
-# Play Console Declarations — first-rollout checklist
+# Pulseboard — Play Console Declarations (completed 2026-04-22)
 
-One-time form work Play requires before any track release (including internal) can transition from draft → rolled-out. After this is done once, every future `make release-internal` publishes end-to-end with no browser involvement.
+Record of what was submitted for `com.vagarylabs.pulseboard` during first-rollout setup. Kept as a source of truth so future edits and audits have a trail.
 
-Answers drafted against Pulseboard v0.1.0-stub (`com.vagarylabs.pulseboard`). Minimum required fields only; fields marked ⓘ are strongly recommended but deferrable.
+This document is also the **template** for any new Vagary Labs Android app — the bootstrap script copies it forward with placeholders. For Pulseboard specifically, all items below are **completed** in Play Console.
 
 ---
 
-## 1. Privacy policy
-**Required IF** the app collects any user data or asks for location/camera/mic/contacts permissions. Pulseboard's stub doesn't yet — but v1.1 will (location for Wi-Fi BSSID, device identifiers, network metrics). URL already hosted.
+## 1. Privacy policy ✅
+- **URL**: https://cramraika.github.io/pulseboard/play/PRIVACY.html _(GH Pages, HTTP 200)_
+- Source: [`docs/play/PRIVACY.md`](PRIVACY.md)
+- Covers: what we collect, what we don't, permissions and why, data sharing policy, user rights, open-source attestation, contact
 
-- **Privacy policy URL**: https://cramraika.github.io/pulseboard/play/PRIVACY.html _(live; paste this into Play Console → App content → Privacy policy)_
+## 2. App access ✅
+- **"All functionality available without special access"** — Yes
 
-## 2. App access
-- **Is all or part of your app restricted based on login credentials, memberships, location, or other restrictions?** → **No, all functionality is available without special access**
+## 3. Ads ✅
+- **Contains ads**: No _(Vagary Labs policy: ad-free)_
 
-## 3. Ads
-- **Does your app contain ads?** → **No**
+## 4. Content rating ✅
+- **Contact email for rating authorities (IARC)**: contact@vagarylife.com
+- **Category**: All other app types (utility/productivity)
+- **Terms & conditions**: Agreed to IARC Terms of Use
+- **Questionnaire answers** (all No):
+  - Downloaded app — Does the app contain any ratings-relevant content downloaded as part of the app package? → **No**
+  - User content sharing — Does the app natively allow users to interact/exchange content? → **No**
+  - Online content — Does the app feature/promote content accessed from the app? → **No**
+  - Promotion or sale of age-restricted products → **No**
+  - Miscellaneous:
+    - Shares user's current and precise physical location with other users → **No**
+    - Allows users to purchase digital goods → **No**
+    - Cash rewards / gift cards / play-to-earn / convertible crypto / NFTs → **No**
+    - Web browser or search engine → **No**
+    - Primarily a news or educational product → **No**
+- **Resulting rating**: PEGI 3 / Everyone _(auto-assigned)_
 
-## 4. Content rating
-Open the questionnaire. For Pulseboard stub, the answers are all "No" except:
-- Category: **Utility, Productivity, Communication, or Other**
-- Violence → **No**
-- Sexuality → **No**
-- Profanity → **No**
-- Controlled substance → **No**
-- Gambling → **No**
-- User-generated content → **No**
-- Shares user's location with other users → **No**
-- Digital purchases → **No**
+## 5. Target audience and content ✅
+- **Target age group**: 13+
+- **Does the app unintentionally appeal to children?**: No
 
-Result: likely **Everyone / PEGI 3**.
+## 6. Data safety ✅
+For v0.1.0-stub: **Collects no user data.** Honest for the current stub (no engine wired).
 
-## 5. Target audience and content
-- **Target age groups**: **13+** (Pulseboard is for employees/professionals; not designed for children)
-- **Does your app unintentionally appeal to children?** → **No**
-- **Does your app include features that specifically target children?** → **No**
+When v1.1 ships, this must be revised to declare:
+- **Personal info** → User IDs (hashed email recommended) — collected, shared with user-configured Sheets endpoint, not sold, encrypted in transit, collection optional (self-provided), user can request deletion by contacting maintainer
+- **Device or other IDs** → same handling
+- **App info and performance** → Diagnostics (network metrics) — collected, shared with user-configured endpoint, not sold, encrypted in transit
 
-## 6. Data safety
-This is the long one. Minimum honest answers for v0.1.0-stub (currently collects nothing):
+## 7. Government apps ✅
+- **Published by a government agency?**: No
 
-- **Does your app collect or share any of the required user data types?** → **No** (accurate for the stub; update when v1.1 adds the engine)
+## 8. Financial features ✅
+- **App features**: **"My app doesn't provide any financial features"** (selected the none-of-the-above option from the full list: Banking/loans, Payments/transfers, Purchase agreements, Trading/funds, Support services, Other)
 
-When v1.1 ships, revise to **Yes** and declare:
-- **Personal info** → User IDs (the user-configured identifier, recommended as email hash) — collected, shared with Google Sheets endpoint, not sold, encrypted in transit, user can request deletion by contacting developer, collection optional (self-provided)
-- **Device or other IDs** → for distinguishing samples, same handling as above
-- **App info and performance** → Diagnostics (network metrics) — collected, shared with user-configured Sheets endpoint, not sold, encrypted in transit
+## 9. Health ✅
+- **Includes health features?**: No
 
-## 7. Government apps
-- **Is this app published by a government agency?** → **No**
+## 10. News apps ✅
+- **Is this a news app?**: No
 
-## 8. Financial features
-- **Does this app include financial features?** → **No**
+## 11. COVID-19 contact tracing ✅
+- **Is this a COVID-19 app?**: No
 
-## 9. Health
-- **Does this app include health features?** → **No**
+---
 
-## 10. News apps
-- **Is this app a news app?** → **No**
+## 12. Main store listing ✅
+All fields synced from filesystem via `make sync-listing`. Source of truth: [`metadata/android/en-US/`](../../metadata/android/en-US/).
 
-## 11. COVID-19 contact tracing and status apps
-- **Is this a publicly available COVID-19 app?** → **No**
+- **App name**: Pulseboard (10 chars / 30 max)
+- **Short description**: Install-and-forget network health vitals for distributed teams. (63 chars / 80 max)
+- **Full description**: 1392 chars / 4000 max (see `full_description.txt`)
+- **App icon**: 512×512 PNG — cyan pulse-wave mark
+- **Feature graphic**: 1024×500 PNG — dark banner with icon + wordmark + tagline
+- **Phone screenshots**: 4 at 1080×1920 — splash, measures, your-sheet, fork-rebrand
+- **7-inch tablet screenshots**: 4 at 1200×1920 _(REQUIRED — Play marks these with *)_
+- **10-inch tablet screenshots**: 4 at 1600×2560 _(REQUIRED — Play marks these with *)_
+- **Video**: not used
+- **Chromebook / Android XR screenshots**: optional, not used
 
-## 12. Main store listing
-Already pushed via `make sync-listing` — title, short description, full description live. **Still needed from you:**
-- **App icon** (512×512 PNG) — see `metadata/android/en-US/images/` and `docs/play/ASSETS.md` for the render plan
-- **Feature graphic** (1024×500 PNG)
-- **Phone screenshots** (minimum 2, maximum 8; 16:9 or 9:16) — blocked on having a real UI; see `docs/play/ASSETS.md` for the placeholder-screenshot workaround
-
-## 13. App category and tags
+## 13. Store settings → App category ⚠️ (browser-only — API doesn't expose)
 - **App or game**: App
-- **Category**: **Tools** (primary) / Productivity (if they offer it as secondary)
-- **Tags**: network, monitoring, wifi, diagnostics
+- **Category**: Tools
+- **Tags**: _(fill from Play Console's tag picker — Utilities, Productivity, Network, Wi-Fi, Diagnostics are good candidates)_
 
-## 14. Store settings → Contact details
-_Set via API 2026-04-22 — already live. Listed here for completeness._
-- **Website**: https://cramraika.github.io/pulseboard/
+## 14. Store settings → Contact details ✅ (API-set 2026-04-22)
 - **Email**: contact@vagarylife.com
+- **Phone number**: _(blank)_
+- **Website**: https://cramraika.github.io/pulseboard/
 - **Default language**: en-US
-- **Phone** (optional): blank
 
-## 15. Countries and regions
-- **Availability**: **All countries** (recommended for an OSS utility) or restrict as preferred
+## 15. External marketing ⚠️ (browser-only)
+- **Advertise my app outside Google Play**: leave ON _(default)_
+
+## 16. Countries and regions ⚠️ (browser-only — set on each track's release UI)
+- **Availability**: All countries _(recommended for OSS utility)_
 
 ---
 
-## After you complete these forms
+## 17. Internal testing rollout ⏳ (one-time click)
 
-1. Play Console → **Internal testing** → you'll see the existing draft release "v1"
+After all the above are marked "Completed" on the Play Console dashboard:
+
+1. **Internal testing** → **Releases** tab → see the draft **"v1"**
 2. Click **Review release** → **Start rollout to Internal testing**
-3. Play will show any remaining blockers; fix them and re-click
-4. Once rolled out: the app state flips from "draft app" to "published" and every future release goes `make release-internal` → live on internal, no browser ever
+3. This click exits "draft app" state forever; all future releases are fully API-driven
 
-## After that, for adding testers
+## 18. Internal testers ⚠️ (individual emails = browser only)
 
-Play Console → **Internal testing** → **Testers** tab → either:
-- **Create email list** → paste your email(s), up to 100 → Save → toggle list to active
-- OR **Google Group** method for larger/dynamic lists
+- **Play Dev API** supports Google Groups (`make testers --track internal --set-groups foo@googlegroups.com`) but not individual emails
+- For a small solo/team case: Play Console → **Internal testing** → **Testers** tab → **Create email list** → paste emails → activate → copy opt-in URL
 
-Then: share the opt-in URL shown at the top of the Testers tab. You + any listed testers click it once in a browser logged into the matching Google account, hit "Become a tester," and the app appears installable from the Play Store app.
+---
+
+## For new Vagary Labs apps
+
+Use this document as a starting template. The bootstrap script scaffolds a fresh `DECLARATIONS.md` per app with Vagary Labs defaults (ads: No, health: No, category: Tools, ad-free policy). Edit per your app's actual behavior before transcribing into Play Console.
