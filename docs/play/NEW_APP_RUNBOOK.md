@@ -84,9 +84,10 @@ Does ALL cloud-side API orchestration. Fully idempotent — safe to re-run any t
 
 Three things Google won't let any automation do. Only relevant if you want **public Play Store** distribution — pre-release testing via Firebase doesn't need any of this:
 
-1. **Create app in Play Console** (~1 min) — click through name + package fields
+1. **Create app in Play Console** (~1 min) — click through name + package fields.
+   **CRITICAL**: set **Default language = English (United States)** at creation. If your Play developer account's default is en-GB (or any non-en-US), Play auto-creates an empty default listing in that language, which our `metadata/android/en-US/` source-of-truth pipeline doesn't populate → "default language not populated" blocker at publish time. Fix after the fact: Store presence → Main store listing → Language settings → change Default language to English (United States).
 2. **Fill 11 compliance declarations** (~25-30 min) — all answers pre-drafted in `docs/play/DECLARATIONS.md`. The long one is Data Safety.
-3. **Paste privacy policy URL + pick category + first "Start rollout" click** (~3 min total) — one-time decisions
+3. **Paste privacy policy URL + pick category + first "Start rollout" click** (~3 min total) — one-time decisions. The Start Rollout click is the ACTUAL draft-app gate — until that click, not only rollouts but ALL `edits.commit` calls are rejected (including listing updates). So this click is genuinely irreducible.
 
 **Total irreducible browser tax: ~30-35 min per new app, once forever.**
 
