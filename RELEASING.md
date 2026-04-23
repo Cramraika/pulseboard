@@ -170,6 +170,17 @@ First rollout gate — see §First rollout on a brand-new app above. You need to
 **`make release-internal` says "versionCode already used"**
 Bump `versionCode` in `app/build.gradle.kts`. Play treats every uploaded versionCode as immutable forever.
 
+**"No testers specified" warning on internal track**
+Internal testing doesn't accept Google Groups via API. Two fixes:
+- Browser: Play Console → Internal testing → Testers → Create email list → add emails. One-time.
+- API-first: Skip internal entirely. `make promote-alpha` — alpha track has Google Groups attached via API. Goes through Google review (hours–days) but every future release is zero-browser.
+
+**"No deobfuscation file associated" warning**
+Benign when `isMinifyEnabled = false` (current stub has no obfuscation → nothing to deobfuscate). When v1.1 enables R8, the `make release-internal` target now auto-uploads `app/build/outputs/mapping/release/mapping.txt` via `publisher upload-mapping` when it exists. No manual action needed.
+
+**"Only releases with status draft may be created on draft app" (after declarations done)**
+Confirmed 2026-04-22: filling declarations is necessary but NOT sufficient. The **"Start rollout to Internal testing"** click in Play Console is Google's mandated human-attestation step that exits draft-app state. One click per app, forever. After that, every track works via API.
+
 **CI workflow fails at "Decode keystore"**
 `PLAY_KEYSTORE_BASE64` secret missing or wrong. Regenerate:
 ```bash

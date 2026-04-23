@@ -402,6 +402,47 @@ def _build_directory_service(admin_email: str) -> Any:
     return build("admin", "directory_v1", credentials=creds, cache_discovery=False)
 
 
+def cmd_upload_mapping(args: argparse.Namespace) -> None:
+    """Upload an R8/ProGuard deobfuscation mapping.txt for a given versionCode.
+
+    Required when `isMinifyEnabled = true` in build.gradle.kts. Play uses it
+    to decode obfuscated class/method names in crash reports and ANRs. Without
+    it, stack traces are "a.b.c.doStuff()" instead of "com.you.AuthUseCase".
+
+    Default mapping location (Gradle default):
+        app/build/outputs/mapping/release/mapping.txt
+
+    Usage:
+        upload-mapping --package com.vagarylabs.pulseboard --version-code 2 \\
+            --mapping app/build/outputs/mapping/release/mapping.txt
+    """
+    service = build_service()
+    edit_id = _edit_begin(service, args.package)
+    try:
+        mapping_path = Path(args.mapping).resolve()
+        if not mapping_path.exists():
+            sys.stderr.write(f"mapping file not found: {mapping_path}\n")
+            sys.exit(2)
+        media = MediaFileUpload(
+            str(mapping_path), mimetype="application/octet-stream"
+        )
+        service.edits().deobfuscationfiles().upload(
+            packageName=args.package,
+            editId=edit_id,
+            apkVersionCode=args.version_code,
+            deobfuscationFileType="proguard",
+            media_body=media,
+        ).execute()
+        _edit_commit(service, args.package, edit_id)
+        print(
+            f"mapping uploaded: {args.package} versionCode={args.version_code} "
+            f"({mapping_path.stat().st_size} bytes)"
+        )
+    except HttpError as e:
+        sys.stderr.write(f"upload-mapping failed: {e}\n")
+        sys.exit(3)
+
+
 def cmd_members(args: argparse.Namespace) -> None:
     """Manage members of a Workspace-domain Google Group via Admin SDK.
 
@@ -688,6 +729,13 @@ def main() -> None:
     rs.add_argument("--fraction", required=True,
                     help="0.0 < f <= 1.0 — what to resume at")
 
+    um = sub.add_parser("upload-mapping",
+                        help="Upload R8/ProGuard mapping.txt for a versionCode (for crash deobfuscation)")
+    um.add_argument("--package", required=True)
+    um.add_argument("--version-code", required=True, type=int)
+    um.add_argument("--mapping", default="app/build/outputs/mapping/release/mapping.txt",
+                    help="Path to mapping.txt (default: Gradle release output)")
+
     mb = sub.add_parser("members",
                         help="Manage Google Group membership via Admin SDK (Workspace groups only)")
     mb.add_argument("--group", required=True,
@@ -747,6 +795,7 @@ def main() -> None:
         "details": cmd_details,
         "testers": cmd_testers,
         "members": cmd_members,
+        "upload-mapping": cmd_upload_mapping,
     }[cmd](args)
 
 

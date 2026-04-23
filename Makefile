@@ -46,6 +46,11 @@ assemble-release: ## Signed APK — side-load distribution (GitHub Releases)
 release-internal: build-aab  ## Upload AAB → internal testing track (draft → rolled out)
 	$(PUBLISH) upload --package $(PACKAGE) --aab $(AAB) --track internal --status draft
 	@vc=$$($(PUBLISH) version-codes --package $(PACKAGE) | awk '/^internal:/ {print $$2}' | cut -d, -f1); \
+	 mapping=app/build/outputs/mapping/release/mapping.txt; \
+	 if [ -f "$$mapping" ]; then \
+	     echo "→ uploading R8 mapping.txt for versionCode=$$vc"; \
+	     $(PUBLISH) upload-mapping --package $(PACKAGE) --version-code $$vc --mapping "$$mapping"; \
+	 fi; \
 	 notes_file=metadata/android/en-US/changelogs/$$vc.txt; \
 	 notes=$$(test -f $$notes_file && cat $$notes_file || echo "Release v$$vc"); \
 	 $(PUBLISH) release --package $(PACKAGE) --version-code $$vc --track internal \
