@@ -114,6 +114,45 @@ sync-listing-text: ## Text-only sync (fast; skips image upload)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android --skip-images \
 	    $(if $(LOCALE),--lang $(LOCALE),)
 
+## ---------- Orchestrators (one-command common flows) ----------
+
+ship-testers: ## Bump versionCode → build APK → Firebase distribute → commit → push (pass TESTERS=csv)
+	@test -n "$(TESTERS)" || (echo "Pass TESTERS=<email,email>"; exit 2)
+	@echo "→ bumping versionCode"; \
+	 vc=$$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | grep -oE '[0-9]+'); \
+	 new=$$((vc + 1)); \
+	 sed -i.bak "s/versionCode = $$vc/versionCode = $$new/" app/build.gradle.kts && rm app/build.gradle.kts.bak; \
+	 echo "Release v$$new" > metadata/android/en-US/changelogs/$$new.txt; \
+	 echo "  versionCode $$vc → $$new"
+	@$(MAKE) distribute TESTERS="$(TESTERS)"
+	@git add app/build.gradle.kts metadata/android/en-US/changelogs/ && \
+	 vc=$$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | grep -oE '[0-9]+'); \
+	 git commit -m "chore(release): versionCode $$vc — shipped to Firebase testers" -q && \
+	 git push origin HEAD
+
+ship-internal: ## Bump versionCode → build AAB → release to Play internal → commit → push
+	@vc=$$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | grep -oE '[0-9]+'); \
+	 new=$$((vc + 1)); \
+	 sed -i.bak "s/versionCode = $$vc/versionCode = $$new/" app/build.gradle.kts && rm app/build.gradle.kts.bak; \
+	 echo "Release v$$new" > metadata/android/en-US/changelogs/$$new.txt; \
+	 echo "  versionCode $$vc → $$new"
+	@$(MAKE) release-internal
+	@vc=$$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | grep -oE '[0-9]+'); \
+	 git add app/build.gradle.kts metadata/android/en-US/changelogs/ && \
+	 git commit -m "chore(release): v$$vc — Play internal" -q && \
+	 git tag "v$$vc" && \
+	 git push origin HEAD "v$$vc"
+
+ship-production: ## Promote current beta → production at PCT=0.05; commit tag
+	@$(MAKE) promote-prod PCT=$(if $(PCT),$(PCT),0.05)
+	@vc=$$($(PUBLISH) version-codes --package $(PACKAGE) | awk '/^production:/ {print $$2}' | cut -d, -f1); \
+	 git tag "prod-v$$vc" 2>/dev/null; git push origin "prod-v$$vc" 2>/dev/null || true
+
+cloud-setup: ## Re-run cloud orchestration (idempotent heal/drift-check)
+	python3 $(HOME)/.claude/scripts/vagary-android-cloud-setup.py \
+	    --dir . --app-name "$(shell grep app_name metadata/android/en-US/title.txt 2>/dev/null || echo Pulseboard)" \
+	    --package $(PACKAGE) --skip-distribute --skip-assets
+
 ## ---------- Firebase App Distribution (pre-release testing, no Play) ----------
 
 distribute: assemble-release  ## Ship APK to Firebase App Distribution testers/groups (no Play Store, no review)
