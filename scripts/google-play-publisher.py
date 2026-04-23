@@ -741,6 +741,87 @@ def cmd_details(args: argparse.Namespace) -> None:
         sys.exit(3)
 
 
+def cmd_delete_listing(args: argparse.Namespace) -> None:
+    """Delete a single non-default listing (locale) from Play.
+
+    Useful when Play auto-creates a locale based on the developer account's
+    language setting that doesn't match our en-US canonical listing. Note:
+    requires the draft-app gate to be lifted (i.e. after the first
+    Start-rollout click). Before that, `edits.commit` is universally blocked.
+    """
+    service = build_service()
+    edit_id = _edit_begin(service, args.package)
+    try:
+        service.edits().listings().delete(
+            packageName=args.package, editId=edit_id, language=args.lang,
+        ).execute()
+        _edit_commit(service, args.package, edit_id)
+        print(f"deleted listing: {args.package}:{args.lang}")
+    except HttpError as e:
+        if "draft app" in str(e).lower():
+            sys.stderr.write(
+                "Cannot delete — draft-app gate is active. Click 'Start rollout to "
+                "Internal testing' in Play Console first, then retry.\n"
+            )
+        else:
+            sys.stderr.write(f"delete-listing failed: {e}\n")
+        sys.exit(3)
+
+
+def cmd_listings_audit(args: argparse.Namespace) -> None:
+    """List every listing and flag incomplete ones (missing description/images).
+
+    Use this at any point — especially after Play Console create-app — to
+    catch auto-generated non-default locales that would fail the 'every
+    language must be complete' validation at publish time.
+    """
+    service = build_service()
+    edit_id = _edit_begin(service, args.package)
+    default_locale = "en-US"
+    try:
+        d = service.edits().details().get(packageName=args.package, editId=edit_id).execute()
+        default_locale = d.get("defaultLanguage", "en-US")
+    except HttpError:
+        pass
+    try:
+        r = service.edits().listings().list(packageName=args.package, editId=edit_id).execute()
+    except HttpError as e:
+        sys.stderr.write(f"listings.list failed: {e}\n")
+        sys.exit(3)
+
+    rows: list[dict] = []
+    for listing in r.get("listings", []):
+        lang = listing.get("language", "")
+        row = {
+            "language": lang,
+            "is_default": lang == default_locale,
+            "title_len": len(listing.get("title", "")),
+            "short_len": len(listing.get("shortDescription", "")),
+            "full_len": len(listing.get("fullDescription", "")),
+            "incomplete": not (listing.get("shortDescription") and listing.get("fullDescription")),
+        }
+        rows.append(row)
+
+    if args.json:
+        print(json.dumps({"defaultLanguage": default_locale, "listings": rows}, indent=2))
+        return
+
+    print(f"default: {default_locale}")
+    print(f"{'LOCALE':<12}{'DEFAULT':<10}{'TITLE':<8}{'SHORT':<8}{'FULL':<8}{'STATUS'}")
+    for row in rows:
+        status = "⚠️ INCOMPLETE" if row["incomplete"] else "✓ ok"
+        print(
+            f"{row['language']:<12}{'✓' if row['is_default'] else '':<10}"
+            f"{row['title_len']:<8}{row['short_len']:<8}{row['full_len']:<8}{status}"
+        )
+    incomplete = [r["language"] for r in rows if r["incomplete"]]
+    if incomplete:
+        print(f"\nincomplete locales: {incomplete}")
+        print(f"fix options:")
+        print(f"  1. delete:  publisher delete-listing --package {args.package} --lang <locale>")
+        print(f"  2. populate: copy en-US content; e.g. mkdir metadata/android/<locale> && cp -r metadata/android/en-US/* metadata/android/<locale>/ && publisher sync-listing --package {args.package} --lang <locale>")
+
+
 def cmd_sync_listing(args: argparse.Namespace) -> None:
     base = Path(args.dir).resolve()
     if not base.exists():
@@ -942,6 +1023,16 @@ def main() -> None:
     dt.add_argument("--default-language", default=None,
                     help="Default listing locale, e.g. en-US")
 
+    dl = sub.add_parser("delete-listing",
+                        help="Delete a single locale's listing (requires draft-app gate lifted)")
+    dl.add_argument("--package", required=True)
+    dl.add_argument("--lang", required=True, help="Locale code, e.g. en-GB")
+
+    la = sub.add_parser("listings-audit",
+                        help="Show all listings with completeness flags")
+    la.add_argument("--package", required=True)
+    la.add_argument("--json", action="store_true")
+
     sl = sub.add_parser("sync-listing",
                         help="Push metadata/<locale>/{title,short_description,full_description,video,images/*}")
     sl.add_argument("--package", required=True)
@@ -966,6 +1057,8 @@ def main() -> None:
         "halt": cmd_halt,
         "resume": cmd_resume,
         "sync-listing": cmd_sync_listing,
+        "delete-listing": cmd_delete_listing,
+        "listings-audit": cmd_listings_audit,
         "details": cmd_details,
         "testers": cmd_testers,
         "members": cmd_members,

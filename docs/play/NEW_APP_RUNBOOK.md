@@ -28,10 +28,29 @@ python3 ~/.claude/scripts/vagary-android-cloud-setup.py \
 cd ~/AndroidStudioProjects/orbitwatch
 make ship-testers TESTERS=alice@x.com,bob@y.com
 
-# === 4. Public Play Store launch (optional, ~30 min browser ONE time per app) ===
-# Follow FINAL-STEPS.md in the repo root — auto-generated with the specific
-# URLs + package name for this app. After that one session:
-
+# === 4. OPTIONAL — Public Play Store launch ===
+# ⚠️ CRITICAL ORDERING for the one-time Play Console browser work:
+#
+#   a. In Play Console → Create app. Pick "English (United States)" as
+#      default language EXPLICITLY at creation (default depends on your
+#      developer-account locale; if en-GB is default, an empty en-GB
+#      listing is auto-created that blocks publish).
+#
+#   b. `make sync-listing` — push all listings, images, contact details
+#      WHILE declarations are still incomplete. Once you finish declarations,
+#      the API's edit-commit gate tightens and every API edit gets blocked
+#      until the first Start-rollout click. So sync FIRST.
+#
+#   c. `make listings-audit` — confirm only en-US exists and is complete.
+#      If a stray locale shows up: `make delete-listing LOCALE=en-GB`.
+#
+#   d. Fill Play Console declarations (25-30 min) per docs/play/DECLARATIONS.md.
+#
+#   e. Play Console → Internal testing → Releases → Start rollout. This
+#      click + Play's automated "quick checks" (15 min–4 hr) lift the draft-app
+#      gate forever. After this, all future API commits work.
+#
+# Once Play is live:
 make ship-internal              # instant — Play internal track
 make promote-alpha              # Google review (hours–days)
 make promote-beta

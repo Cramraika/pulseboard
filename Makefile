@@ -106,6 +106,13 @@ reviews:         ## Fetch recent reviews
 
 ## ---------- store listing ----------
 
+listings-audit:  ## Audit every Play-side listing for completeness (flags stray empty locales)
+	$(PUBLISH) listings-audit --package $(PACKAGE)
+
+delete-listing:  ## Delete a non-default locale's listing (pass LOCALE=en-GB). Requires gate lifted.
+	@test -n "$(LOCALE)" || (echo "Pass LOCALE=<en-GB|...>"; exit 2)
+	$(PUBLISH) delete-listing --package $(PACKAGE) --lang $(LOCALE)
+
 sync-listing:    ## Push metadata/android/ → Play (all locales, includes images)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android \
 	    $(if $(LOCALE),--lang $(LOCALE),)
