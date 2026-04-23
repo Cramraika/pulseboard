@@ -48,6 +48,11 @@ except ImportError as e:
 SCOPES = ["https://www.googleapis.com/auth/androidpublisher"]
 DEFAULT_SA_PATH = Path.home() / ".config" / "google-play" / "sa.json"
 
+# Firebase App Distribution uses cloud-platform scope on the same SA.
+# Firebase config per app is declared via env vars (FIREBASE_APP_ID,
+# FIREBASE_PROJECT_NUMBER) or --app-id/--project-number flags.
+FIREBASE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
 # Admin SDK scopes — only requested when `members` command is used, and only
 # valid for Workspace-domain groups (NOT public googlegroups.com groups).
 # Requires the SA to have domain-wide delegation enabled in admin.google.com
@@ -402,6 +407,166 @@ def _build_directory_service(admin_email: str) -> Any:
     return build("admin", "directory_v1", credentials=creds, cache_discovery=False)
 
 
+def _firebase_token() -> str:
+    """Get a bearer token for Firebase App Distribution REST calls."""
+    import google.auth.transport.requests as _rq
+    sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
+    creds = service_account.Credentials.from_service_account_file(
+        str(sa_path), scopes=FIREBASE_SCOPES,
+    )
+    creds.refresh(_rq.Request())
+    return creds.token
+
+
+def _firebase_call(method: str, url: str, body=None, *, token=None, binary=None, upload_name=None):
+    """Thin REST wrapper with useful error reporting for App Distribution."""
+    import urllib.request as _urlreq
+    import urllib.error as _urlerr
+    tok = token or _firebase_token()
+    headers = {"Authorization": f"Bearer {tok}"}
+    if binary is not None:
+        headers["Content-Type"] = "application/octet-stream"
+        headers["X-Goog-Upload-File-Name"] = upload_name or "binary"
+        headers["X-Goog-Upload-Protocol"] = "raw"
+        data = binary
+    else:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(body).encode() if body is not None else None
+    r = _urlreq.Request(url, data=data, method=method, headers=headers)
+    try:
+        with _urlreq.urlopen(r) as resp:
+            raw = resp.read()
+            return resp.status, json.loads(raw) if raw else {}
+    except _urlerr.HTTPError as e:
+        return e.code, e.read().decode()[:800]
+
+
+def _poll_firebase_op(op_name: str, token: str, max_attempts: int = 36) -> dict:
+    import time
+    for _ in range(max_attempts):
+        s, b = _firebase_call("GET", f"https://firebaseappdistribution.googleapis.com/v1/{op_name}", token=token)
+        if isinstance(b, dict) and b.get("done"):
+            return b
+        time.sleep(5)
+    raise RuntimeError(f"App Distribution operation timed out: {op_name}")
+
+
+def cmd_distribute(args: argparse.Namespace) -> None:
+    """Ship an APK to Firebase App Distribution testers.
+
+    One-shot flow:
+      1. Upload APK (auto-activates App Distribution on first upload per app)
+      2. Wait for binary processing
+      3. Add testers at project scope (idempotent)
+      4. Set release notes
+      5. Distribute release to the listed testers / groups
+      6. Print the testing URL
+
+    Usage:
+        distribute --apk app/build/outputs/apk/release/app-release.apk \\
+            --testers chinu.ramraika@gmail.com,foo@bar.com \\
+            [--groups vagary-testers,internal-qa] \\
+            [--notes-file metadata/android/en-US/changelogs/2.txt]
+
+    Requires env vars (or flags): FIREBASE_APP_ID, FIREBASE_PROJECT_NUMBER.
+    APK (not AAB) by default — AAB requires Firebase↔Play linking in browser.
+    """
+    app_id = args.app_id or os.environ.get("FIREBASE_APP_ID")
+    project_number = args.project_number or os.environ.get("FIREBASE_PROJECT_NUMBER")
+    if not app_id or not project_number:
+        sys.stderr.write(
+            "Missing FIREBASE_APP_ID / FIREBASE_PROJECT_NUMBER (env or --app-id/--project-number).\n"
+            "Find them with: cat app/google-services.json, or in Firebase Console → Project settings.\n"
+        )
+        sys.exit(2)
+
+    binary_path = Path(args.apk).resolve()
+    if not binary_path.exists():
+        sys.stderr.write(f"APK not found: {binary_path}\n")
+        sys.exit(2)
+    if binary_path.suffix.lower() == ".aab":
+        sys.stderr.write(
+            "NOTE: Uploading .aab requires Firebase↔Play linking (browser-only).\n"
+            "Strongly recommend APK for App Distribution. Continuing anyway...\n"
+        )
+
+    token = _firebase_token()
+    print(f"→ uploading {binary_path.name} ({binary_path.stat().st_size:,} bytes)")
+    upload_url = (
+        f"https://firebaseappdistribution.googleapis.com/upload/v1/projects/"
+        f"{project_number}/apps/{app_id}/releases:upload"
+    )
+    s, b = _firebase_call("POST", upload_url,
+                          binary=binary_path.read_bytes(),
+                          upload_name=binary_path.name,
+                          token=token)
+    if s != 200 or not isinstance(b, dict) or "name" not in b:
+        sys.stderr.write(f"upload failed ({s}): {b}\n")
+        sys.exit(3)
+    op_name = b["name"]
+
+    print(f"→ waiting for binary processing…")
+    op = _poll_firebase_op(op_name, token)
+    if op.get("error"):
+        sys.stderr.write(f"processing failed: {op['error'].get('message')}\n")
+        sys.exit(3)
+    release = op.get("response", {}).get("release", {})
+    release_name = release.get("name")
+    if not release_name:
+        sys.stderr.write(f"no release name in op response: {op}\n")
+        sys.exit(3)
+
+    tester_emails = [e.strip() for e in (args.testers or "").split(",") if e.strip()]
+    if tester_emails:
+        print(f"→ registering {len(tester_emails)} tester(s) at project scope")
+        s, b = _firebase_call(
+            "POST",
+            f"https://firebaseappdistribution.googleapis.com/v1/projects/{project_number}/testers:batchAdd",
+            {"emails": tester_emails},
+            token=token,
+        )
+        if s not in (200, 409):  # 409 = already exists, OK
+            print(f"  (warn) batchAdd returned {s}: {b}")
+
+    if args.notes_file:
+        notes_path = Path(args.notes_file)
+        if notes_path.exists():
+            notes = notes_path.read_text().strip()
+            s, b = _firebase_call(
+                "PATCH",
+                f"https://firebaseappdistribution.googleapis.com/v1/{release_name}?updateMask=releaseNotes.text",
+                {"releaseNotes": {"text": notes}},
+                token=token,
+            )
+            print(f"→ release notes set ({len(notes)} chars)")
+
+    distribute_body: dict = {}
+    if tester_emails:
+        distribute_body["testerEmails"] = tester_emails
+    groups = [g.strip() for g in (args.groups or "").split(",") if g.strip()]
+    if groups:
+        distribute_body["groupAliases"] = groups
+    if not distribute_body:
+        sys.stderr.write("No testers or groups to distribute to. Pass --testers or --groups.\n")
+        sys.exit(2)
+
+    s, b = _firebase_call(
+        "POST",
+        f"https://firebaseappdistribution.googleapis.com/v1/{release_name}:distribute",
+        distribute_body,
+        token=token,
+    )
+    if s != 200:
+        sys.stderr.write(f"distribute failed ({s}): {b}\n")
+        sys.exit(3)
+
+    # Fetch the testing URL
+    s, r = _firebase_call("GET", f"https://firebaseappdistribution.googleapis.com/v1/{release_name}", token=token)
+    print(f"→ distributed v{release.get('displayVersion', '?')}")
+    if isinstance(r, dict) and r.get("testingUri"):
+        print(f"  testers install via: {r['testingUri']}")
+
+
 def cmd_upload_mapping(args: argparse.Namespace) -> None:
     """Upload an R8/ProGuard deobfuscation mapping.txt for a given versionCode.
 
@@ -729,6 +894,15 @@ def main() -> None:
     rs.add_argument("--fraction", required=True,
                     help="0.0 < f <= 1.0 — what to resume at")
 
+    ds = sub.add_parser("distribute",
+                        help="Ship APK to Firebase App Distribution testers (bypasses Play entirely)")
+    ds.add_argument("--apk", required=True, help="Path to signed APK (use APK, not AAB, to avoid Firebase↔Play linking)")
+    ds.add_argument("--testers", default=None, help="CSV of tester emails")
+    ds.add_argument("--groups", default=None, help="CSV of Firebase group aliases")
+    ds.add_argument("--notes-file", default=None, help="Path to release-notes text file")
+    ds.add_argument("--app-id", default=None, help="Firebase app ID (or env FIREBASE_APP_ID)")
+    ds.add_argument("--project-number", default=None, help="Firebase/GCP project number (or env FIREBASE_PROJECT_NUMBER)")
+
     um = sub.add_parser("upload-mapping",
                         help="Upload R8/ProGuard mapping.txt for a versionCode (for crash deobfuscation)")
     um.add_argument("--package", required=True)
@@ -796,6 +970,7 @@ def main() -> None:
         "testers": cmd_testers,
         "members": cmd_members,
         "upload-mapping": cmd_upload_mapping,
+        "distribute": cmd_distribute,
     }[cmd](args)
 
 

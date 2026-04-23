@@ -1,15 +1,22 @@
 # The 100% Automation Envelope
 
-Honest scope of what can and cannot be automated for Google Play publishing, given Google's own API and ToS constraints. This is the reference — any time someone claims "make it fully automatic," refer here.
+Honest scope of what can and cannot be automated for Android app distribution, split between **Firebase App Distribution** (pre-release testing) and **Google Play** (production release). Refer here any time someone claims "make it fully automatic."
+
+## The two-lane architecture
+
+**Lane 1 — Firebase App Distribution (pre-release testing):**
+**100% automated.** Register app via API, `make distribute TESTERS=x@y.com`, tester gets install link in ~60 seconds. No Play Console, no Google Groups needed, no review delay, no first-rollout click. See `FIREBASE_SETUP.md`.
+
+**Lane 2 — Google Play Store (production):**
+- **Release lifecycle** (upload, promote, rollout, halt): **100% automated.** Zero browser.
+- **Store presence** (listings, images, contact details): **100% automated.** Zero browser.
+- **First-time per-app setup** (create app, 11 compliance declarations, privacy policy URL, category, tags, first "Start rollout" click): **~30-45 min browser work per app, once forever.** Google forbids API access.
 
 ## Short version
 
-- **Release lifecycle** (code → APK → upload → track promotion → rollout → halt/resume → reviews): **100% automated.** Zero browser.
-- **Store presence** (listing text + all image sizes + contact details): **100% automated.** Zero browser.
-- **Testing at scale** (Google Group–based alpha/beta tracks): **100% automated.** Zero browser after Google Group creation.
-- **First-time per-app setup** (app creation, compliance declarations, privacy policy URL, category, tags, rating questionnaire, data safety, target audience, first "Start rollout" click): **~30-45 min browser work per app, once forever.** Google forbids API access to these.
-
-**So "100% no-browser" is impossible** — not because our tooling is limited, but because Google deliberately requires human attestation for legal/compliance items. The best any pipeline can achieve is the per-app browser budget above.
+- **Reaching testers**: Firebase path — **0 browser** per app, per release, per tester forever.
+- **Reaching public Play Store users**: first app needs ~30-45 min browser; subsequent releases of the same app are **0 browser**.
+- Every new Vagary Labs app needs that one-time Play browser tax **only** if you want public Play distribution. If an app only needs internal/alpha/beta testing (Firebase), Play Console is never touched.
 
 ---
 

@@ -15,8 +15,15 @@ TRACK    ?= internal
 PCT      ?= 1.0
 LOCALE   ?=
 AAB      := app/build/outputs/bundle/release/app-release.aab
+APK      := app/build/outputs/apk/release/app-release.apk
 PUBLISH  := python3 $(HOME)/.claude/scripts/google-play-publisher.py
 GRADLE   := JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew
+
+# Firebase App Distribution config (bypasses Play Store entirely for pre-release testing)
+export FIREBASE_APP_ID ?= 1:485446040927:android:4bc85408e5b394b2764aea
+export FIREBASE_PROJECT_NUMBER ?= 485446040927
+TESTERS  ?=
+GROUPS   ?=
 
 .PHONY: help test lint build-aab assemble-release release-internal promote-alpha \
         promote-beta promote-prod rollout halt resume status version-codes \
@@ -106,6 +113,23 @@ sync-listing:    ## Push metadata/android/ → Play (all locales, includes image
 sync-listing-text: ## Text-only sync (fast; skips image upload)
 	$(PUBLISH) sync-listing --package $(PACKAGE) --dir metadata/android --skip-images \
 	    $(if $(LOCALE),--lang $(LOCALE),)
+
+## ---------- Firebase App Distribution (pre-release testing, no Play) ----------
+
+distribute: assemble-release  ## Ship APK to Firebase App Distribution testers/groups (no Play Store, no review)
+	@vc=$$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | grep -oE '[0-9]+'); \
+	 notes_file=metadata/android/en-US/changelogs/$$vc.txt; \
+	 notes_arg=$$(test -f $$notes_file && echo "--notes-file $$notes_file" || echo ""); \
+	 testers_arg=$$(test -n "$(TESTERS)" && echo "--testers $(TESTERS)" || echo ""); \
+	 groups_arg=$$(test -n "$(GROUPS)" && echo "--groups $(GROUPS)" || echo ""); \
+	 test -n "$$testers_arg$$groups_arg" || (echo "Pass TESTERS=<csv> and/or GROUPS=<csv>"; exit 1); \
+	 $(PUBLISH) distribute --apk $(APK) $$testers_arg $$groups_arg $$notes_arg
+
+distribute-testers: ## Quick: ship APK to TESTERS=<csv> (builds if needed)
+	$(MAKE) distribute TESTERS="$(TESTERS)"
+
+distribute-group:  ## Quick: ship APK to Firebase GROUPS=<csv>
+	$(MAKE) distribute GROUPS="$(GROUPS)"
 
 ## ---------- assets ----------
 
