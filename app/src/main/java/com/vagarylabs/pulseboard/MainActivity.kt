@@ -1,10 +1,10 @@
 package com.vagarylabs.pulseboard
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 
 /**
  * Placeholder Activity for the Pulseboard public build.
@@ -26,8 +26,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         findViewById<LinearLayout>(R.id.companionCard).setOnClickListener {
-            val url = getString(R.string.companion_url)
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            startActivity(Intent(Intent.ACTION_VIEW, getString(R.string.companion_url).toUri()))
         }
     }
 }
