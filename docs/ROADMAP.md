@@ -222,20 +222,28 @@ Versioning convention: stay on `0.x.y` until v1.0 (which is the "fully-functiona
 
 **Why this is its own milestone**: Fork-and-rebrand is the central differentiator of Pulseboard's positioning. It's worth investing in as a polished, sponsor-credible feature.
 
-### v1.2 — multi-endpoint adapter (~3-4 sittings)
+### v1.2 — multi-endpoint adapter (~1-1.5 weeks; SCOPE EXPANDED 2026-04-25)
 
-**Scope**: `:core`'s upload mechanism is currently `SheetsUploader` only. Generalise to a pluggable interface so forks can target other backends.
+**Scope**: `:core`'s upload mechanism is currently `SheetsUploader` only. Generalise to a pluggable interface and ship **all four** backends in this milestone (decision 2026-04-25; the original "ship Webhook only, add Supabase later" sequencing was rejected in favour of one cohesive multi-endpoint release).
 
 **Concrete deliverables**:
 1. **`Uploader` interface** in `:core` with method `suspend fun upload(payload: List<SheetPayload>): UploadResult`
-2. **3 implementations**:
-   - `SheetsUploader` (existing — refactored to interface)
-   - `WebhookUploader` (generic POST to any HTTPS endpoint with optional bearer token)
-   - `SupabaseUploader` (insert into a Supabase table — Supabase is a common "we want a real DB not a Sheet" target for small teams)
-3. **Onboarding step** lets user pick the upload target type during onboarding (default: Sheets).
-4. **Tests**: each implementation has its own test class. ~30 new tests.
+2. **Four implementations**:
+   - `SheetsUploader` (existing — refactored to implement `Uploader`)
+   - `WebhookUploader` — generic POST to any HTTPS endpoint with optional bearer token. Maximum flexibility (works with Zapier / Make.com / n8n / PostgREST / anything).
+   - `SupabaseUploader` — direct insert into a Supabase Postgres table. Real DB, SQL queries from day 1. ~150 LOC of dedicated client code.
+   - `NotionUploader` — append to a Notion database row. Notion-as-team-knowledge-base is increasingly common at small teams. ~200 LOC of dedicated Notion API code.
+3. **Onboarding flow**: backend picker step. Default = Sheets (continues v0.4 onboarding's behaviour). Webhook + Supabase + Notion are alternative paths.
+4. **Per-backend onboarding sub-flows**:
+   - Sheets: Apps Script clone-Sheet (default) or paste-script (advanced) — same as v0.4
+   - Webhook: paste URL + optional bearer-token field
+   - Supabase: paste project URL + anon key + table name
+   - Notion: paste integration token + database ID + property mapping
+5. **Tests**: each implementation has its own test class with mock HTTP server. ~40 new tests across 4 backends.
 
-**Exit criteria**: All 3 backends successfully receive a flush in test deploys.
+**Why ship all 4 at v1.2 instead of staging**: the core abstraction is the same effort regardless of how many implementations sit on top. Adding 3 more backends after the interface lands is just N×~150 LOC of mechanical work + onboarding screens. One milestone, one announcement, one set of v1.2 release notes — beats spreading the same work across v1.2 / v1.2.1 / v1.2.2.
+
+**Exit criteria**: All 4 backends pass smoke test with a live deploy. Onboarding picker UI tested on each path. Per-backend section in `docs/BACKENDS.md`.
 
 ### v1.3 — Sentry/GlitchTip optional crash reporting (~1 sitting)
 
@@ -263,16 +271,80 @@ Versioning convention: stay on `0.x.y` until v1.0 (which is the "fully-functiona
 2. **`docs/apps-script/QUICK_DEPLOY.md`** — the new shortened path, becomes the default in onboarding.
 3. The longer hand-paste path stays as fallback for users who want to inspect the script before running it.
 
-### v2.0 — milestone gate; pick at the time
+### v2.x — competitive-coverage program (DECIDED 2026-04-25)
 
-When v1.5 ships, four genuinely-major directions could land at v2.0. Pick one based on actual demand at that point (sponsor signals, fork count, GitHub issue patterns):
+**Frame** (replaces the original "iOS / federation / hosted / AP" candidates): map Pulseboard's feature surface against the existing market, identify gaps, ship parity-or-better. The differentiator stays "best-in-class Sheet/integration setup" (already covered by v1.2 multi-endpoint adapter + v1.5 self-serve provisioner) — so v2.x focuses on FEATURE-SET parity with established players in 4 categories:
 
-- **v2.0a — iOS port.** Biggest single addressable-audience expansion. Probably ~3 months of focused work; sponsor-funded.
-- **v2.0b — federated multi-tenant Sheet.** "One Sheet for ALL your forks across customers" — moves Pulseboard up-market into MSP territory.
-- **v2.0c — first-party hosted backend.** Optional managed Supabase + dashboard for teams who don't want to run their own Apps Script. Crosses the OSS-vs-SaaS line — only do this if the sponsor revenue justifies operations cost.
-- **v2.0d — Wi-Fi-AP-side integration.** Talk to Aruba / Ubiquiti / Mikrotik APIs to enrich Pulseboard data with AP-side counters (bssid_changes, channel utilisation, etc). Powerful for IT teams; niche audience.
+#### v2.0 — Active diagnostic tools parity (PingPlotter / WinMTR / Smokeping)
 
-The v2.0 decision is **deferred to v1.5 ship time**. Don't over-commit early.
+**Audience**: power users and IT teams who today open PingPlotter/WinMTR for ad-hoc diagnostics. Pulseboard's wedge is "continuous + multi-device + Sheet-native pivot" instead of single-device-snapshot.
+
+**Feature gaps to close**:
+- On-demand "deep-probe now" UI (not just continuous sampling) — a button in MainActivity that fires an immediate MTR + speedtest + iperf burst and shows results inline (vs waiting for next 15-min flush)
+- Configurable target schedules (some targets every 1s, others every 5 min — saves bandwidth on low-priority targets)
+- Path-MTU discovery alongside RTT (PingPlotter has it; Pulseboard doesn't)
+- Pre-built provider profiles for the 9 VoIP providers in `pulseboard-desktop`'s `docs/VOIP_PROVIDERS.md` — port the same profile snippets into the Android app's onboarding "preset providers" picker
+
+**Effort**: ~3-4 weeks of focused work.
+
+#### v2.1 — Enterprise SaaS NPM features (Datadog NPM / Catchpoint / ThousandEyes parity for free)
+
+**Audience**: teams currently quoting $1k-$10k/mo for Datadog NPM but who would prefer free + private. Pulseboard's wedge: spreadsheet-native + no SaaS subscription.
+
+**Feature gaps to close**:
+- Synthetic monitor scheduling ("ping smartflo every minute, but only between 9 AM and 6 PM IST")
+- Alert routing (Slack / email / PagerDuty webhook on threshold breach — already opted-in via v0.4's notification step)
+- BGP path analysis on the desktop side (`pulseboard-desktop` extension)
+- Multi-region simultaneous probing (multi-device coordination — one Android in Delhi, another in Bangalore, sample the same targets, surface regional divergence in the Sheet)
+- SLO tracking (per-target uptime % over rolling 7/30/90-day windows, computed Sheet-side via the Apps Script handler)
+
+**Effort**: ~4-6 weeks. Many features are Sheet-script work (Apps Script handler upgrades), not Android changes.
+
+#### v2.2 — Self-hosted infrastructure monitoring features (PRTG / Nagios / Zabbix / Solarwinds NPM equivalents)
+
+**Audience**: small IT shops who currently run a dedicated monitoring server. Pulseboard's wedge: "the agent is on the user's phone, not on a server you maintain".
+
+**Feature gaps to close**:
+- SNMP polling (the Android app polls printer/AP/switch SNMP from inside the office — controversial, may need a lightweight desktop daemon instead)
+- Network topology auto-discovery from gateway probes (build a "discovered devices" tab in the Sheet)
+- Per-device uptime tracking (each network device gets a row, last-seen + uptime% over windows)
+- Alert templates ("notify if subnet X loses > 50% of devices for > 5 min")
+
+**Effort**: ~4-6 weeks. Some features (SNMP) may pivot to live in `pulseboard-desktop` instead of the Android app.
+
+#### v2.3 — AP-side WLAN integration (Aruba Insight / Cisco DNA / Ubiquiti Site Monitoring)
+
+**Audience**: IT teams running enterprise Wi-Fi. Pulseboard's wedge: cross-references client-side reality (from phones) with AP-side counters (from APs themselves).
+
+**Feature gaps to close**:
+- Aruba ArubaCentral API integration (read AP/client state, enrich Pulseboard rows with `ap_id`, `radio_band`, `client_steering_events`)
+- Ubiquiti UniFi Controller API (same shape; UniFi is the dominant SMB choice)
+- Cisco Meraki Dashboard API (heavier integration; defer unless explicit ask)
+- Sheet-side join: Pulseboard rows × AP-side rows on `(timestamp, bssid)` to surface "this user's bad Wi-Fi window correlates with this AP's high-channel-utilisation window"
+- Mikrotik RouterOS API (lower priority but cheap to add; copy the AP integration shape)
+
+**Effort**: ~6-8 weeks across 4 vendors; can ship Aruba + Ubiquiti at v2.3.0 and stage Cisco/Mikrotik for v2.3.1+.
+
+#### v2.x sequencing
+
+| Track | Trigger | Estimated ship |
+|---|---|---|
+| v2.0 — Active diagnostic parity | After v1.5 + 1-week dogfood | ~2026-10 |
+| v2.1 — Enterprise SaaS NPM features | After v2.0 stabilises | ~2026-12 |
+| v2.2 — Self-hosted infra monitoring | After v2.1 | ~2027-02 |
+| v2.3 — AP-side WLAN integration | After v2.2 | ~2027-04 |
+
+**Each v2.x track is its own ~1-2 month program.** No more "single milestone, decide at v1.5 time" framing. The roadmap explicitly commits to all 4, with sequencing that prioritises the most-direct-comparison categories first (active diagnostic > enterprise NPM > self-hosted > AP-side).
+
+#### Cross-track competitive analysis (lives in `docs/COMPETITIVE.md`)
+
+Add a new doc that tracks, for each market tool:
+- Feature matrix (rows = features, columns = tools, cells = ✅ / 🟡 / ❌)
+- Where Pulseboard sits on each row
+- Roadmap milestone that closes each gap (links back to v2.0 / v2.1 / v2.2 / v2.3)
+- Last-audit date per tool (audit annually)
+
+This doc is the single source of truth for "what's the next feature parity gap to close" decisions.
 
 ---
 
@@ -349,13 +421,32 @@ Bake into milestones, don't defer:
 
 ---
 
-## 6. Open questions (decisions deferred)
+## 6. Decisions log (all RESOLVED 2026-04-25)
 
-1. **Should `OnboardingActivity` collect a Slack/email webhook for self-notifications** (e.g. "your duty cycle dropped below 80%")? Adds complexity but increases stickiness. **Decision deferred to v0.6**.
-2. **Should the Apps Script template auto-create a `wifi_group` lookup tab** that admins can edit in the Sheet itself rather than re-deploying the script? Better UX but more moving parts. **Defer to v0.6**.
-3. **Naming** — keep `Pulseboard` always, or per-fork the Play listing? Per-fork is the whole point of fork-and-rebrand; the **public Play listing always reads "Pulseboard"**. Forks publish under their own branded names with their own Play accounts. **Decided.**
-4. **Should v1.0 include a "configurable retention period for the Sheet"** auto-trim? Sheet has 10M-cell ceiling; for a 50-user org at default cadence, ~2 years of headroom. **Defer to v1.5 or later — not a v1.0 blocker.**
-5. **Default ping target list for v0.4** — anycast controls only (Cloudflare DNS+CDN, Google DNS+API, MS Teams), or also a "your gateway" auto-detect? Auto-detect is more useful (catches LAN-side issues) but requires gateway-resolution code path on first sample. NMCN's `GatewayResolver` already does this — **enable auto-gateway-detect by default in v0.4**.
+The original "open questions" section is now closed. Decisions made + locked into the roadmap:
+
+| # | Decision | Locked choice | Where reflected |
+|---|---|---|---|
+| 1 | Architecture direction | **Direction C** (hybrid: port `:core` gaps directly, rebuild `:app` fresh with configurable `Constants` using NMCN as architectural reference) | §3 |
+| 2 | Pace | **Sustainable** ~5-6 weeks to v1.0 | §9 calendar |
+| 3 | v2.0 frame | **Market-feature-parity + best-in-class sheet/integration setup** (NOT iOS/federation/hosted) | §4 v2.x |
+| 4 | v0.4 onboarding scope | **Comprehensive** — custom-IP editor + Slack/email self-notifications + auto-provision flow + Wi-Fi group label override + dark/light theme toggle | §4 v0.4 |
+| 5 | Default ping targets | **Anycast 5 + auto-gateway** (5 anycast presets ON by default + auto-detect default gateway as 6th target via existing `GatewayResolver`) | §4 v0.4 |
+| 6 | Apps Script delivery | **Both clone-Sheet (default) + paste-script (advanced)** in onboarding | §4 v0.6 + v1.5 |
+| 7 | CI on PR | **At v0.4** alongside the Constants split | §4 v0.4 |
+| 8 | Sponsor tier structure | **Keep flat** (default GitHub Sponsors tiers; same convention as bulk + tldv_downloader). Add tier perks LATER if sponsor revenue justifies the design effort. | §5.1 |
+| 9 | Identifier policy default | **Any non-empty string** (no domain gate by default; forkers set their corporate regex via `BuildConfig` if they want one) | §4 v0.4 |
+| 10 | Domain `pulseboard.build` | **Defer indefinitely** — `cramraika.github.io/pulseboard` is enough | (removed from roadmap) |
+| 11 | v2.0 benchmarks | **All 4 categories**: active diagnostic + enterprise SaaS NPM + self-hosted infra + AP-side WLAN. Sequenced as v2.0 → v2.1 → v2.2 → v2.3. | §4 v2.x |
+| 12 | v1.2 backends | **All 3 at once**: Webhook + Supabase + Notion. Single milestone, single announcement. | §4 v1.2 |
+
+### Items kept as deferrals (not blockers)
+
+| Item | Status |
+|---|---|
+| `wifi_group` auto-create lookup tab in Sheet | Deferred to v2.1 (folded into "Sheet-side SLO tracking" work) |
+| Configurable Sheet retention auto-trim | Deferred — at default cadence + 50 users, ~2 years of headroom; revisit at v2.0+ |
+| Naming — Play listing per-fork vs always Pulseboard | **Decided**: public Play listing always reads "Pulseboard"; forks publish under their own branded names with their own Play accounts via `scripts/rebrand.sh` (v1.1) |
 
 ---
 
@@ -390,45 +481,298 @@ Bake into milestones, don't defer:
 
 | Milestone | Scope | Effort | Dependencies | Ship vehicle |
 |---|---|---|---|---|
-| v0.3 | `:core` gap close | 1 day | — | Internal track |
-| v0.4 | Configurable Constants + onboarding skeleton + first real PingService | 3 days | v0.3 | Internal track |
-| v0.5 | OEM hardening + watchdog | 2 days | v0.4 | Internal track |
-| v0.6 | Apps Script handler v1.3 ported | 1 day | v0.4 | docs/ + Internal track |
-| **v1.0** | **Promote to Play Production** | **1 day** | **v0.5 + v0.6 soak** | **All tracks** |
-| v1.1 | rebrand.sh fork toolkit | 1-2 days | v1.0 | Production track |
-| v1.2 | Multi-endpoint adapter (Webhook + Supabase) | 3-4 days | v1.1 | Production track |
-| v1.3 | Optional Sentry/GlitchTip | 1 day | v1.2 | Production track |
-| v1.4 | pulseboard-desktop pairing | 2 days | v1.0 + pulseboard-desktop GUI work | Production track |
-| v1.5 | Self-serve Sheet provisioner | 2 days | v1.0 | docs/ + Production |
-| v2.0a-d | Decision-deferred until v1.5 ships | varies | varies | varies |
+| v0.3 | `:core` gap close (4 files: HttpClients, PingTargetId, ThroughputProbe, WifiGroup) | 1 day | — | Internal track |
+| v0.4 | Comprehensive onboarding + configurable Constants + first real PingService + CI-on-PR | 5 sittings | v0.3 | Internal track |
+| v0.5 | OEM hardening + watchdog + WatchdogWorker + SecurePrefs + BootReceiver | 2 sittings | v0.4 | Internal track |
+| v0.6 | Apps Script handler v1.3 ported (clone-Sheet + paste-script paths in docs) | 1 day | v0.4 | docs/ + Internal |
+| **v1.0** | **Promote to Play Production + announce** | **1 day** | **v0.5 + v0.6 soak (1 week each)** | **All tracks** |
+| v1.1 | `scripts/rebrand.sh` fork-and-rebrand toolkit | 1-2 days | v1.0 | Production track |
+| **v1.2** | **Multi-endpoint adapter — ALL 4 backends (Sheets refactor + Webhook + Supabase + Notion)** | **1-1.5 weeks** | v1.1 | Production track |
+| v1.3 | Optional Sentry/GlitchTip (paste DSN in BuildConfig at fork-time) | 1 day | v1.2 | Production track |
+| v1.4 | pulseboard-desktop pairing — `desktop_correlation_id` Sheet column + `--match-pulseboard-android` flag | 2 days | v1.0 + pulseboard-desktop coordination | Production track |
+| v1.5 | Self-serve Sheet provisioner — Sheet template URL with Make-A-Copy | 2 days | v1.0 | docs/ + Production |
+| **v2.0** | **Active-diagnostic-tools parity** (PingPlotter / WinMTR / Smokeping equivalents) | **3-4 weeks** | v1.5 dogfood 1 week | Production |
+| v2.1 | Enterprise SaaS NPM features (Datadog NPM / Catchpoint / ThousandEyes equivalents) | 4-6 weeks | v2.0 | Production |
+| v2.2 | Self-hosted infra monitoring features (PRTG / Nagios / Zabbix / Solarwinds NPM equivalents) | 4-6 weeks | v2.1 | Production |
+| v2.3 | AP-side WLAN integration (Aruba ArubaCentral + UniFi + optionally Cisco Meraki + Mikrotik) | 6-8 weeks | v2.2 | Production |
 
-**Calendar projection** (assuming ~1 sitting/week of focused effort, around the day job):
+**Calendar projection** (assuming sustainable pace — ~1 sitting per weekend of focused effort, around the day job):
 
-- v0.3: 2026-05-02 (next weekend)
-- v0.4: 2026-05-23 (3 weeks)
-- v0.5: 2026-06-06
-- v0.6: 2026-06-13
-- v1.0 Internal soak begins: 2026-06-20
-- v1.0 Production rollout begins: 2026-07-04
-- v1.0 100% production: 2026-07-18
-- v1.1 / v1.2 / v1.3 / v1.4 / v1.5: rolling through Aug-Nov 2026
-- v2.0 decision: 2026-11
+| Date | Milestone |
+|---|---|
+| 2026-05-02 | v0.3 ships to Internal |
+| 2026-05-23 | v0.4 ships (5 sittings = ~3 weeks) |
+| 2026-06-06 | v0.5 ships |
+| 2026-06-13 | v0.6 ships |
+| 2026-06-20 | v1.0 Internal soak begins |
+| 2026-07-04 | v1.0 Production rollout begins (5%) |
+| 2026-07-18 | v1.0 100% production |
+| 2026-08-01 | v1.1 (rebrand.sh) ships Production |
+| 2026-08-22 | v1.2 (4 backends) ships Production |
+| 2026-08-29 | v1.3 (optional Sentry) ships |
+| 2026-09-12 | v1.4 (pulseboard-desktop pairing) ships |
+| 2026-09-26 | v1.5 (self-serve Sheet) ships |
+| 2026-10-24 | **v2.0 (active-diagnostic parity) ships** |
+| 2026-12-12 | v2.1 (enterprise NPM features) ships |
+| 2027-02-13 | v2.2 (self-hosted infra features) ships |
+| 2027-04-17 | v2.3 (AP-side WLAN integration) ships |
+
+**v1.0 production: ~2026-07-18.** v2.x competitive-coverage program runs through Oct 2026 → Apr 2027.
 
 ---
 
-## 10. What's NOT in this roadmap (explicit non-goals)
+## 10. Implementation tasks per milestone (concrete work breakdown)
+
+Each milestone below lists the specific files to add/edit, tests to write, exit-criteria checks, and ship vehicle. Follow these in order — each builds on the previous.
+
+### v0.3 implementation tasks (1 day)
+
+**Files added** to `core/src/main/java/com/pulseboard/core/`:
+- `HttpClients.kt` — verbatim copy from NMCN. Shared OkHttp instance, base + newBuilder pattern. ~52 LOC.
+- `PingTargetId.kt` — verbatim copy. Enum of canonical target IDs (SMARTFLO, SMARTFLO_2, GATEWAY, CLOUDFLARE_DNS, CLOUDFLARE_CDN). The smartflo entries stay in the enum but are NOT auto-included in default `$Targets` — they're available for forks that want them. ~43 LOC.
+- `ThroughputProbe.kt` — verbatim copy. 500 KB HTTPS download per flush window. ~211 LOC.
+- `WifiGroup.kt` — copy with empty default `LOOKUP` map. Comment notes that forkers populate via `BuildConfig` at v0.4 time. ~70 LOC.
+
+**Files added** to `core/src/test/java/com/pulseboard/core/`:
+- `PingTargetIdTest.kt` (4 tests)
+- `ThroughputProbeTest.kt` (13 tests)
+- `WifiGroupTest.kt` (11 tests, verifying empty-LOOKUP behaviour)
+- HttpClients doesn't need its own test file; covered transitively by Throughput + Sheets tests
+- Adapt `SheetsUploaderTest` if any tests reference the new HttpClients shared instance (check vs the existing 12 tests).
+
+**Files edited**:
+- `SheetsUploader.kt` — refactor to use `HttpClients.newBuilder()` instead of constructing its own OkHttpClient. Mirror NMCN's pattern.
+- Remove the doc-comment "smartflo / gateway / cloudflare / dns for CN" in `SheetsUploader.kt` (line ~15-17 — generalise to "one row per target per flush").
+
+**Verification**:
+```bash
+./gradlew :core:test                 # all 52 + ~28 new = ~80 tests pass
+./gradlew :core:lint                 # 0 new errors
+git status -- core/                  # only files in the list above changed
+```
+
+**Ship**: bump pulseboard versionCode 2 → 3, versionName 0.2.0 → 0.3.0; commit + push; `make ship-internal` to push v0.3.0 AAB to Play Internal.
+
+**Acceptance**: pulseboard `:core` test count goes 52 → ~80; `:core` LOC goes 868 → ~1184; v0.3.0 in Play Internal track.
+
+---
+
+### v0.4 implementation tasks (5 sittings, ~3 weeks)
+
+**Files added**:
+- `app/src/main/java/com/vagarylabs/pulseboard/Constants.kt` — split into:
+  - **`BuildConfig`-backed** (added to `app/build.gradle.kts` `buildConfigField` lines): `DEFAULT_WEBHOOK_URL`, `DEFAULT_TARGET_IPS`, `EMAIL_DOMAIN_REGEX`, `APP_VERSION_TAG`, `WIFI_GROUP_LOOKUP_JSON` (JSON map of gateway IP → group label, baked in at fork time)
+  - **Runtime constants** (Kotlin `const val`): notification channel IDs, prefs keys, magic numbers like `SAMPLE_INTERVAL_MS = 1000L`, `MAX_BUFFER_SAMPLES = 6750`
+- `app/src/main/java/com/vagarylabs/pulseboard/PingTarget.kt` — wrap `:core`'s `PingTargetId` enum into the resolve-address + sampler abstraction (~24 LOC — direct port from NMCN).
+- `app/src/main/java/com/vagarylabs/pulseboard/service/PingService.kt` — fresh implementation, NMCN as architectural reference. ~400-500 LOC. Differences from NMCN's PingService:
+  - Read target list from `SharedPreferences.enabled_target_ids`, not hardcoded
+  - Read webhook URL from `SharedPreferences.webhook_url`, not `Constants.WEBHOOK_URL`
+  - Skip throughput probe on cellular by default; configurable via `SharedPreferences.throughput_on_cellular = false`
+  - No ASM-specific code path; no API key handling
+  - Same wall-clock-aligned flusher, same retain-on-failure buffer (5400 samples), same OEM-hardening foreground-service-type combo
+- `app/src/main/java/com/vagarylabs/pulseboard/OnboardingActivity.kt` — comprehensive flow per Decision 4. ~400 LOC. Steps:
+  1. Welcome screen + identifier field (default policy: any non-empty string per Decision 9; `EMAIL_DOMAIN_REGEX` BuildConfig override)
+  2. Webhook URL paste + validation (HTTPS-only; HEAD request to verify it responds)
+  3. Optional: Apps Script Quick Deploy (clone-Sheet button per Decision 6 — opens browser to template Sheet's "Make a copy" URL)
+  4. Target picker — 5 anycast presets defaulted ON (Cloudflare DNS, Cloudflare CDN, Google DNS, Google API, Microsoft Teams) PLUS auto-gateway-detect (per Decision 5; resolved by `GatewayResolver` on first sample) PLUS custom-IP editor for adding own targets
+  5. Optional Slack/email self-notification webhook (per Decision 4 comprehensive scope; if user pastes a webhook, the app POSTs threshold-breach summaries to it)
+  6. Wi-Fi group label override (advanced; user can manually override what `WifiGroup.fromGatewayIp` returns)
+  7. Theme picker (light/dark/system-default)
+  8. Permissions chain (notifications, location-for-Wi-Fi-BSSID, battery exemption — full 8-step playbook from NMCN)
+- `app/src/main/java/com/vagarylabs/pulseboard/SecurePrefs.kt` — minimal stub (full implementation in v0.5). For v0.4, plain SharedPreferences is enough.
+- `app/src/main/java/com/vagarylabs/pulseboard/NotificationHelper.kt` — direct port from NMCN; ~44 LOC; channel ID + builder.
+
+**Files edited**:
+- `app/build.gradle.kts` — add `buildConfigField` lines, add core-ktx dependency variant if needed
+- `app/src/main/AndroidManifest.xml` — add INTERNET, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE, FOREGROUND_SERVICE_DATA_SYNC, POST_NOTIFICATIONS, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION, NEARBY_WIFI_DEVICES; declare PingService as foreground service; declare BootReceiver
+- `app/src/main/java/com/vagarylabs/pulseboard/MainActivity.kt` — replace stub-with-companion-card with read-only dashboard. Show: last flush timestamp, last-window p95 RTT/jitter/loss per target, Wi-Fi group label, service status + watchdog last-restart, companion-card kept at bottom.
+- `app/src/main/res/layout/activity_main.xml` — replace ScrollView+stub with proper dashboard layout (RecyclerView for target rows + Card for service status + companion card at bottom)
+- `app/src/main/res/values/strings.xml` — add ~30 strings for onboarding screens
+
+**Tests added** (`app/src/test/`):
+- `OnboardingActivityTest.kt` (~5 tests — webhook validation, target picker default state, identifier policy)
+- `ConstantsTest.kt` (~3 tests — BuildConfig defaults match expected)
+- `PingServiceTest.kt` (~10 tests — mock-context based)
+
+**CI on PR — added at v0.4 per Decision 7**:
+- New file: `.github/workflows/android-ci.yml`. Runs on pull_request to main:
+  - `./gradlew :core:lint`
+  - `./gradlew :core:test`
+  - `./gradlew :app:lintDebug`
+  - `./gradlew :app:testDebugUnitTest`
+- 30-min timeout per job. Caches gradle.
+
+**Verification**:
+- Fresh install + onboarding (all 8 steps) → row lands in user's Sheet within 15 min
+- `make ship-internal` succeeds; v0.4.0 appears in Play Internal track
+- Two test forkers (Chinmay's deploy + one other) confirm fork-and-rebrand works without editing `Constants.kt`
+- 95%+ duty-cycle on a Pixel 8 across 24 hr (smoke test)
+- CI passes on a sample PR
+
+**Ship**: versionCode 3 → 4, versionName 0.3.0 → 0.4.0, GitHub Release v0.4.0 with full notes.
+
+---
+
+### v0.5 implementation tasks (2 sittings)
+
+**Files added**:
+- `app/src/main/java/com/vagarylabs/pulseboard/SecurePrefs.kt` — full EncryptedSharedPreferences wrapper for `user_id`. Migration shim from plain prefs. ~100 LOC. Direct port from NMCN.
+- `app/src/main/java/com/vagarylabs/pulseboard/service/WatchdogWorker.kt` — WorkManager periodic worker that pings the last-sampler-heartbeat preference; if stale > 5 min, restarts `PingService`. Cooldown 10 min. ~110 LOC. Direct port from NMCN.
+- `app/src/main/java/com/vagarylabs/pulseboard/BootReceiver.kt` — restart on `BOOT_COMPLETED`. ~30 LOC. Direct port.
+
+**Files edited**:
+- `OnboardingActivity` — extend Step 8 (permissions) to the full 8-step chain from NMCN's v1.2 hardening (NEARBY_WIFI_DEVICES gate, ACCESS_BACKGROUND_LOCATION gate, OEM autostart intent for Xiaomi/Oppo/Realme/OnePlus/Vivo/Huawei, auto-revoke exemption for SDK 30+).
+- `app/src/main/AndroidManifest.xml` — declare PingService with `foregroundServiceType="dataSync|location"` (combined type required for `WifiManager.startScan()` from background on Android 13+); declare WatchdogWorker initializer.
+- `PingService` — write last-sampler-heartbeat to SharedPreferences on each flush so WatchdogWorker can detect stale state.
+
+**Tests added**:
+- `WatchdogWorkerTest.kt` (~5 tests)
+- `SecurePrefsTest.kt` (~3 tests — migration from plain prefs)
+
+**Verification**:
+- Survives 7-day soak on Xiaomi/Realme/Vivo/OPPO devices, ≥ 95% duty cycle
+- Fresh install on stock Android 14 → service still running 24 hr later through screen-off cycles
+- Manual test: kill PingService process → WatchdogWorker restarts within 15 min
+
+**Ship**: versionCode 4 → 5, versionName 0.5.0.
+
+---
+
+### v0.6 implementation tasks (1 day)
+
+**Files added** to `docs/apps-script/`:
+- `doPost-v1.gs` — paste-ready Apps Script handler. Mirrors NMCN's `docs/superpowers/apps-script/doPost-v1.3.gs` structure but:
+  - Empty `WIFI_GROUP_LOOKUP` map (forkers populate via Apps Script Properties or by editing the script)
+  - No CN-specific Sheet IDs hardcoded
+  - Defaults to creating a new Sheet tab on first run
+  - Server-derives `wifi_group` from `gateway_ip` + `network_type_dominant` (mirrors NMCN's logic with empty default lookup)
+  - Server-derives `flush_outcome` (ok / lossy / total_loss / unreachable / sparse / heartbeat / onboarding)
+  - Auto-maintains a `Users` tab with per-rep last-seen-version
+- `README.md` — deploy instructions for both clone-Sheet and paste-script paths
+- `SCHEMA.md` — column reference (the v1.3 + v1.5+ ASM schema, generalised)
+- `BACKFILL.gs` (optional one-shot) — populates Users tab from existing historical Sheet data
+
+**Files edited**:
+- `OnboardingActivity` Step 3 — wire the "Apps Script Quick Deploy" button to open the GitHub-hosted clone-Sheet URL (template Sheet that copies the script too)
+
+**Verification**:
+- Two deploys (Chinmay's own + one external test forker) successfully receive v0.4+ flushes and produce the expected derived columns
+
+**Ship**: versionCode 5 → 6 (only if app code touched; for docs-only change, no version bump). docs/ committed + pushed.
+
+---
+
+### v1.0 implementation tasks (1 day for Production rollout)
+
+No new features. Promote v0.6 through Internal → Alpha → Beta → Production.
+
+**Tasks**:
+1. Confirm v0.6 has been in Internal track for 1 week with no regressions
+2. `make promote-alpha` — Google review (hours-days first time)
+3. After 1-week Alpha soak: `make promote-beta`
+4. After 1-week Beta soak: `make promote-prod PCT=0.05` (5% staged)
+5. Day 3-7 of production: monitor via `make reviews` + `make status`; confirm crash-free sessions ≥ 99%
+6. `make rollout PCT=0.5` then `PCT=1.0` if green
+7. Tag `v1.0.0` git tag
+8. `gh release create v1.0.0` with full notes (template in `docs/announcements/v1.0.md`)
+9. Update `docs/index.md` with "now on Play Store" + Play badge
+10. Update README's shield row with Play Store badge
+11. Announcement push: HN Show HN, r/networking, r/sysadmin, LinkedIn (use `docs/announcements/v1.0.md` copy)
+
+**Halt protocol**: if crash-free sessions drops below 99% for any 24-hour window during the production rollout, `make halt TRACK=production`. Investigate, fix, ship v1.0.1.
+
+**Acceptance**: 100% prod rollout; ≥ 99% crash-free; sponsor count > 0 (any non-zero is the win signal at this stage).
+
+---
+
+### v1.1 implementation tasks (1-2 days)
+
+**Files added**:
+- `scripts/rebrand.sh` — interactive bash script. Prompts for: app name, package name, brand primary colour (hex), logo PNG path, optional default webhook URL, optional default email regex.
+  - Renames package (`sed` across `app/src/main/java/com/vagarylabs/pulseboard/` → `app/src/main/java/<new-package>/`)
+  - Updates `applicationId` in `app/build.gradle.kts`
+  - Regenerates icon set via `scripts/render_brand_assets.py` with the new logo + colour
+  - Updates `metadata/android/en-US/title.txt`, `short_description.txt`, `full_description.txt` text
+  - Re-renders feature graphic + 12 screenshots (4 phone + 4 7-inch + 4 10-inch) via `render_brand_assets.py`
+  - Updates README.md and CLAUDE.md app name + signing-keystore-prefix references
+  - Sets `BuildConfig.DEFAULT_WEBHOOK_URL` and `BuildConfig.EMAIL_DOMAIN_REGEX` in `local.properties` (NOT committed) per the user's input
+- `docs/FORK_GUIDE.md` — long-form fork-onboarding guide. Discoverable from README. ~200 LOC.
+
+**Test fork**: Build `Cramraika/pulseboard-fork-test` end-to-end via the script in < 10 min. Confirm passes lint, builds signed APK with new identity. Document in repo with the artifact deleted (don't keep the test fork as a permanent repo).
+
+**Ship**: versionCode 6 → 7, versionName 1.0.0 → 1.1.0.
+
+---
+
+### v1.2 implementation tasks (1-1.5 weeks; ALL 4 backends per Decision 12)
+
+**Files added** to `core/src/main/java/com/pulseboard/core/`:
+- `Uploader.kt` — interface with `suspend fun upload(payload: List<SheetPayload>): UploadResult` and a sealed `UploadResult` (Success / Retry / Fatal)
+- `WebhookUploader.kt` — generic POST to any HTTPS endpoint with optional bearer-token field. ~80 LOC.
+- `SupabaseUploader.kt` — direct insert into a Supabase Postgres table via the REST API. Requires Supabase project URL + anon key + table name. ~150 LOC.
+- `NotionUploader.kt` — append to a Notion database via Notion API. Requires integration token + database ID. ~200 LOC.
+
+**Files edited**:
+- `SheetsUploader.kt` — refactor to implement `Uploader` interface (no behaviour change; just sits behind the new interface)
+
+**`:app` changes**:
+- `OnboardingActivity` — add a backend-picker step before the webhook-URL step. Default = Sheets. Picker reveals different sub-flows per backend.
+- `Constants.kt` — add `SharedPreferences` keys for `backend_type`, `webhook_bearer_token`, `supabase_url`, `supabase_anon_key`, `supabase_table`, `notion_token`, `notion_database_id`, `notion_property_mapping_json`
+- `PingService` — read `SharedPreferences.backend_type` and instantiate the right `Uploader` implementation; same retain-on-failure buffer wraps any uploader
+
+**Tests added** (~40 new tests):
+- `WebhookUploaderTest.kt` (~10 tests; mock HTTP server)
+- `SupabaseUploaderTest.kt` (~15 tests; mock Supabase REST endpoints)
+- `NotionUploaderTest.kt` (~15 tests; mock Notion API)
+
+**Docs**:
+- `docs/BACKENDS.md` — overview of the 4 backends + when to pick each
+- `docs/backends/SHEETS.md` (existing Apps Script setup, moved here)
+- `docs/backends/WEBHOOK.md` (Zapier / Make.com / n8n / PostgREST / generic recipes)
+- `docs/backends/SUPABASE.md` (table schema, RLS rules, anon-key security note)
+- `docs/backends/NOTION.md` (database schema + integration setup)
+
+**Ship**: versionCode 7 → 8, versionName 1.1.0 → 1.2.0.
+
+---
+
+### v1.3 / v1.4 / v1.5 implementation outlines
+
+**v1.3 (1 day)**: Add Sentry SDK as `compileOnly` in `app/build.gradle.kts`; add `BuildConfig.SENTRY_DSN` (empty default for OSS; forkers paste their DSN at fork-time); init Sentry in `Application.onCreate()` only if DSN is non-empty. New file: `docs/SENTRY.md`.
+
+**v1.4 (2 days)**: Add `desktop_correlation_id` optional column to the v1.3 `SheetPayload` data class. PingService reads `SharedPreferences.desktop_pairing_dir` (default `/sdcard/pulseboard-desktop-pairing/`); if a marker file exists there with a recent mtime (< 5 min old), reads its content as the correlation ID. Update `pulseboard-desktop` separately to add `--match-pulseboard-android <pairing-dir>` flag that emits the marker file. New file: `docs/PAIRING.md`.
+
+**v1.5 (2 days)**: Public-shareable Google Sheet URL with the v0.6 script + Users + APs tabs pre-set up. User clicks "File → Make a copy" + redeploys script with their own Google credentials in 1 click. Update `OnboardingActivity` Step 3 to default to this clone-flow URL (paste-script becomes the advanced disclosure). New file: `docs/apps-script/QUICK_DEPLOY.md`.
+
+---
+
+### v2.0+ implementation outlines
+
+Each v2.x track gets its own dedicated implementation plan doc when it reaches the active milestone (don't pre-write — the design will shift based on what's learned from earlier tracks). New files when the milestones reach active:
+- `docs/plans/v2.0-active-diagnostic-parity.md` (created when v1.5 ships)
+- `docs/plans/v2.1-enterprise-npm-features.md` (when v2.0 ships)
+- `docs/plans/v2.2-self-hosted-infra-features.md` (when v2.1 ships)
+- `docs/plans/v2.3-ap-side-wlan-integration.md` (when v2.2 ships)
+
+`docs/COMPETITIVE.md` — created at v1.5 ship. Maintains feature matrix across all tools mentioned in §4 v2.x. Annual audit obligation lands on this doc.
+
+---
+
+## 11. What's NOT in this roadmap (explicit non-goals)
 
 - **Real-time dashboards inside the app.** The Sheet is the dashboard. If you want a real-time view, Google Sheets has live editing — open the Sheet, watch it.
-- **Push-notification-style alerts in the app.** Pulseboard's promise is "passive, install-and-forget". Notifications about poor network would be ironic. Sheet-side conditional formatting + email-on-cell-change scripts handle this for power users.
+- **Push-notification-style alerts in the app for the user themselves.** Pulseboard's promise is "passive, install-and-forget". Notifications about poor network would be ironic. The Slack/email self-notification webhook in v0.4's onboarding goes to OPS / IT (a team-routing surface), not back to the user.
 - **Built-in chat / support / community in-app.** Issues go to GitHub. Discussion in the repo. No in-app social surface.
 - **Telemetry by default.** Anything that talks to a Vagary-Labs-controlled endpoint by default is a non-starter. Sentry (v1.3) is opt-in via `BuildConfig`.
 - **In-app purchases / monetisation.** OSS, sponsor-funded. No in-app payment flow.
-- **A managed SaaS hosting tier under the Pulseboard name.** Out of scope unless v2.0c is selected based on demand.
+- **A managed SaaS hosting tier under the Pulseboard name.** Not in v2.x. Crosses the OSS-vs-SaaS line; only revisit if sponsor revenue justifies operations cost; would land as a v3.0 conversation, not v2.0.
+- **iOS port.** Originally a v2.0 candidate; superseded by the v2.x competitive-coverage program. Sponsor-funded only — if a sponsor commits ≥ $X/mo for iOS, can be slotted in as v2.5 or after v2.3 ships. Not a default roadmap commitment.
 - **`com.pulseboard.*` second-party SDK for other apps.** Not Pulseboard's mission.
+- **Domain `pulseboard.build`.** Deferred indefinitely per Decision 10.
 
 ---
 
-## 11. Cross-references
+## 12. Cross-references
 
 - This repo: `CLAUDE.md` § Project Scope / Vision (north star)
 - This repo: `RELEASING.md` (release lifecycle runbook)
@@ -442,7 +786,7 @@ Bake into milestones, don't defer:
 
 ---
 
-## 12. Document ownership
+## 13. Document ownership
 
 - **Roadmap author**: Chinmay (2026-04-25)
 - **Living doc**: yes — Claude updates as milestones land. Each milestone closing a row in §4 should bump the "where we are today" section + add a Past / Phase History entry in CLAUDE.md.

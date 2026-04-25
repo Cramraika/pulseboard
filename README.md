@@ -163,16 +163,16 @@ Side-load: upload `app-release.apk` to Google Drive → "Anyone with the link" �
 
 ## Roadmap
 
-Where Pulseboard is headed: see [`docs/ROADMAP.md`](docs/ROADMAP.md). Headline:
+Where Pulseboard is headed: see [`docs/ROADMAP.md`](docs/ROADMAP.md) (12 sections, all decisions locked 2026-04-25). Headline:
 
-| Milestone | Scope |
+| Phase | Scope |
 |---|---|
-| **v0.3 → v0.6** | Port the proven NMCN engine into a configurable public app — onboarding, PingService, OEM hardening, Apps Script template forkers deploy verbatim |
-| **v1.0** | Promote to Play Production + announce |
-| **v1.1 → v1.5** | Fork-and-rebrand toolkit, multi-endpoint adapter (Webhook/Supabase), pulseboard-desktop pairing, self-serve Sheet provisioner |
-| **v2.0** | Decision-deferred until v1.5 ships: iOS port / federated multi-tenant / hosted backend / AP-side integration |
+| **v0.3 → v0.6** (May-Jun 2026) | Port the proven NMCN engine into a configurable public app — `:core` gap close, comprehensive onboarding, OEM hardening, Apps Script template forkers deploy verbatim |
+| **v1.0** (Jul 2026) | Promote to Play Production + announce |
+| **v1.1 → v1.5** (Aug-Sep 2026) | `scripts/rebrand.sh` fork toolkit; multi-endpoint adapter — all 4 backends (Sheets + Webhook + Supabase + Notion); optional Sentry; pulseboard-desktop pairing; self-serve Sheet provisioner |
+| **v2.0 → v2.3** (Oct 2026 - Apr 2027) | Competitive-coverage program: feature parity with active diagnostic tools (PingPlotter / WinMTR), enterprise SaaS NPM (Datadog NPM / Catchpoint / ThousandEyes), self-hosted infra (PRTG / Nagios / Zabbix), AP-side WLAN visibility (Aruba / UniFi / Cisco / Mikrotik) |
 
-The roadmap doc has milestone-by-milestone exit criteria, sponsor flywheel evolution, distribution cadence, risks, and explicit non-goals.
+The roadmap doc has milestone-by-milestone exit criteria, concrete file-by-file implementation tasks, sponsor flywheel evolution, distribution cadence, risks, and explicit non-goals.
 
 ## Related projects
 

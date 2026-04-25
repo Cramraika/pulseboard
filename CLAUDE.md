@@ -139,21 +139,28 @@ Roadmap item #2 will ship `scripts/rebrand.sh` to automate steps 2-5 via prompts
 
 **Authoritative roadmap** — milestones, dependencies, sequencing, sponsor flywheel, Play rollout cadence, risks, and explicit non-goals — lives at [`docs/ROADMAP.md`](docs/ROADMAP.md). Trust the doc; the legacy summary below is kept for cross-reference only.
 
-### Headline milestones (v0.3 → v2.0)
+### Headline milestones (v0.3 → v2.3)
 
-| Milestone | Scope | Status |
-|---|---|---|
-| **v0.3** | Port 4 missing `:core` files from NMCN (HttpClients, PingTargetId, ThroughputProbe, WifiGroup) | not started |
-| **v0.4** | Configurable Constants + onboarding skeleton + first real PingService | not started |
-| **v0.5** | OEM hardening + watchdog (NMCN v1.2 playbook) | not started |
-| **v0.6** | Apps Script handler v1.3 ported (forkers deploy verbatim) | not started |
-| **v1.0** | Promote to Play Production + announce | not started |
-| **v1.1** | `scripts/rebrand.sh` fork toolkit | not started |
-| **v1.2** | Multi-endpoint adapter (Webhook + Supabase) | not started |
-| **v1.3** | Optional Sentry/GlitchTip | not started |
-| **v1.4** | pulseboard-desktop pairing | not started |
-| **v1.5** | Self-serve Sheet provisioner | not started |
-| **v2.0** | Decision-deferred: iOS port / federated multi-tenant / hosted backend / AP-side integration | TBD |
+All decisions locked 2026-04-25. See `docs/ROADMAP.md` § 6 Decisions log + § 10 Implementation tasks per milestone.
+
+| Milestone | Scope | Effort | Status |
+|---|---|---|---|
+| **v0.3** | Port 4 missing `:core` files from NMCN (HttpClients, PingTargetId, ThroughputProbe, WifiGroup) | 1 day | not started |
+| **v0.4** | Comprehensive onboarding (8 steps) + configurable Constants + first real PingService + CI-on-PR | 5 sittings | not started |
+| **v0.5** | OEM hardening + watchdog (NMCN v1.2 playbook) | 2 sittings | not started |
+| **v0.6** | Apps Script handler v1.3 ported — both clone-Sheet (default) + paste-script (advanced) paths | 1 day | not started |
+| **v1.0** | Promote to Play Production + announce | 1 day | not started |
+| **v1.1** | `scripts/rebrand.sh` fork-and-rebrand toolkit | 1-2 days | not started |
+| **v1.2** | Multi-endpoint adapter — **ALL 4 backends** (Sheets refactor + Webhook + Supabase + Notion) | 1-1.5 weeks | not started |
+| **v1.3** | Optional Sentry/GlitchTip (paste DSN at fork-time) | 1 day | not started |
+| **v1.4** | pulseboard-desktop pairing — `desktop_correlation_id` + marker-file matching | 2 days | not started |
+| **v1.5** | Self-serve Sheet provisioner — clone-Sheet template URL | 2 days | not started |
+| **v2.0** | **Active diagnostic tools parity** (PingPlotter / WinMTR / Smokeping equivalents) | 3-4 weeks | not started |
+| **v2.1** | **Enterprise SaaS NPM features** (Datadog NPM / Catchpoint / ThousandEyes equivalents) | 4-6 weeks | not started |
+| **v2.2** | **Self-hosted infra monitoring features** (PRTG / Nagios / Zabbix / Solarwinds NPM equivalents) | 4-6 weeks | not started |
+| **v2.3** | **AP-side WLAN integration** (Aruba ArubaCentral + UniFi + optionally Cisco Meraki + Mikrotik) | 6-8 weeks | not started |
+
+**v1.0 production target: ~2026-07-18**. v2.x competitive-coverage program runs through Oct 2026 → Apr 2027.
 
 ### Legacy unstructured roadmap (superseded by `docs/ROADMAP.md`)
 
