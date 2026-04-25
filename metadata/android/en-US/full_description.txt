@@ -20,4 +20,7 @@ Android 8.0+ (API 26). Location permission is required for Wi-Fi BSSID access â€
 PRIVACY
 Pulseboard collects only network diagnostics and a user-configured identifier (recommended: hashed email). No ads. No third-party analytics. Your data goes to your Sheet and nowhere else.
 
+DESKTOP COMPANION
+Want more detail when something looks wrong? Pair Pulseboard with pulseboard-desktop on Windows â€” an open-source companion that runs MTR, tshark, iperf3, and speedtest side-by-side for hours to pinpoint which hop on the ISP's network is failing. Pulseboard catches when your network degrades; pulseboard-desktop catches why and where on the ISP path. github.com/Cramraika/pulseboard-desktop
+
 Part of the Vagary Labs open-source utilities.
