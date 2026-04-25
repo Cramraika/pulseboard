@@ -11,6 +11,7 @@ Open-source Android utility that samples internet quality (latency, jitter, pack
 
 - **Source**: [github.com/Cramraika/pulseboard](https://github.com/Cramraika/pulseboard)
 - **License**: MIT
+- **Roadmap**: [ROADMAP](ROADMAP.html) — v0.3 → v2.0 milestones, sponsor flywheel, risk register
 - **Privacy policy**: [play/PRIVACY](play/PRIVACY.html)
 - **Release info**: [RELEASING](../RELEASING.html)
 

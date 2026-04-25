@@ -137,15 +137,37 @@ Roadmap item #2 will ship `scripts/rebrand.sh` to automate steps 2-5 via prompts
 
 ## Roadmap
 
-1. **v1.1 public build** — wire `:core`'s 4-sampler engine into a configurable public PingService: user-entered ping targets at onboarding, open email allow-list (any domain or none), Pulseboard-branded dashboard. Mirrors CN v1.1's architecture but without CN-specific hardcoding.
-2. **Fork-and-rebrand toolkit**: `scripts/rebrand.sh` that swaps app name, colors, launcher icon, upload endpoint via prompts.
-3. **Multi-endpoint adapter**: support non-Sheets uploads (webhook, Supabase, Firestore) via a pluggable writer interface.
-4. **Self-serve Sheet provisioner**: Apps Script template you deploy once to generate your receiving Sheet + Web App URL in 30 seconds.
-5. **CI/CD** (`.github/workflows/android-ci.yml`): `gradlew lint` + `:core:testDebugUnitTest` on PRs; `assembleRelease` on tag push.
-6. ~~**Play Store submission**~~ — **pipeline built + live 2026-04-22**. Full tooling: `scripts/google-play-publisher.py` (upload/release/listing/reviews/status/version-codes/rollout/halt/resume/sync-listing), `Makefile` (17 targets including `render-assets`), `scripts/render_brand_assets.py` (icon + feature graphic + screenshots + mipmaps from adaptive icon XML + palette), `metadata/android/en-US/` source-of-truth, `.github/workflows/release.yml`. Docs: `RELEASING.md` (full lifecycle), `docs/play/PLAY_CHECKLIST.md` (Google's checklist mapped to automation ✅/🟡/⚠️), `docs/play/DECLARATIONS.md` (form answers), `docs/play/PRIVACY.md` (privacy policy draft). versionCode=1 AAB uploaded to internal track as draft; first-rollout declarations pending in Play Console. Once rolled out: every future release is `make release-internal` + `make promote-*`.
-7. **Optional Sentry/GlitchTip** for crash reporting.
-8. **Sponsor tier features**: custom branding pack, on-prem endpoint, enterprise support.
-9. **`pulseboard.build` brand site**: simple docs + install guide (once domain purchased).
+**Authoritative roadmap** — milestones, dependencies, sequencing, sponsor flywheel, Play rollout cadence, risks, and explicit non-goals — lives at [`docs/ROADMAP.md`](docs/ROADMAP.md). Trust the doc; the legacy summary below is kept for cross-reference only.
+
+### Headline milestones (v0.3 → v2.0)
+
+| Milestone | Scope | Status |
+|---|---|---|
+| **v0.3** | Port 4 missing `:core` files from NMCN (HttpClients, PingTargetId, ThroughputProbe, WifiGroup) | not started |
+| **v0.4** | Configurable Constants + onboarding skeleton + first real PingService | not started |
+| **v0.5** | OEM hardening + watchdog (NMCN v1.2 playbook) | not started |
+| **v0.6** | Apps Script handler v1.3 ported (forkers deploy verbatim) | not started |
+| **v1.0** | Promote to Play Production + announce | not started |
+| **v1.1** | `scripts/rebrand.sh` fork toolkit | not started |
+| **v1.2** | Multi-endpoint adapter (Webhook + Supabase) | not started |
+| **v1.3** | Optional Sentry/GlitchTip | not started |
+| **v1.4** | pulseboard-desktop pairing | not started |
+| **v1.5** | Self-serve Sheet provisioner | not started |
+| **v2.0** | Decision-deferred: iOS port / federated multi-tenant / hosted backend / AP-side integration | TBD |
+
+### Legacy unstructured roadmap (superseded by `docs/ROADMAP.md`)
+
+The list below was the previous in-CLAUDE roadmap — preserved during this session for provenance. New work tracked via the milestone table above + the long-form doc.
+
+1. ~~v1.1 public build~~ — see ROADMAP.md v0.3 + v0.4 + v0.5 + v0.6 (split into 4 milestones for clarity)
+2. ~~Fork-and-rebrand toolkit~~ — ROADMAP.md v1.1
+3. ~~Multi-endpoint adapter~~ — ROADMAP.md v1.2
+4. ~~Self-serve Sheet provisioner~~ — ROADMAP.md v1.5
+5. ~~CI/CD on PRs~~ — ROADMAP.md v0.4 (folded in)
+6. **Play Store pipeline built + live 2026-04-22**; draft-app gate now lifted (`internal: v1 completed`). Future releases via `make release-internal` + `make promote-*`.
+7. ~~Optional Sentry/GlitchTip~~ — ROADMAP.md v1.3
+8. ~~Sponsor tier features~~ — ROADMAP.md §5.1 sponsor flywheel evolution
+9. **`pulseboard.build` brand site** — pending domain purchase; deferred outside the version roadmap
 
 ## Past / Phase History
 

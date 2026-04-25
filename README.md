@@ -161,6 +161,19 @@ Side-load: upload `app-release.apk` to Google Drive → "Anyone with the link" �
 - **Webhook is "Anyone" access.** Anyone with your URL can POST arbitrary rows. Acceptable for internal use; harden with a shared secret if exposure widens.
 - **Google Sheet capacity.** 10M-cell ceiling. Default schema: ~1440 cells/day/user. Rotate annually for org-scale deployments.
 
+## Roadmap
+
+Where Pulseboard is headed: see [`docs/ROADMAP.md`](docs/ROADMAP.md). Headline:
+
+| Milestone | Scope |
+|---|---|
+| **v0.3 → v0.6** | Port the proven NMCN engine into a configurable public app — onboarding, PingService, OEM hardening, Apps Script template forkers deploy verbatim |
+| **v1.0** | Promote to Play Production + announce |
+| **v1.1 → v1.5** | Fork-and-rebrand toolkit, multi-endpoint adapter (Webhook/Supabase), pulseboard-desktop pairing, self-serve Sheet provisioner |
+| **v2.0** | Decision-deferred until v1.5 ships: iOS port / federated multi-tenant / hosted backend / AP-side integration |
+
+The roadmap doc has milestone-by-milestone exit criteria, sponsor flywheel evolution, distribution cadence, risks, and explicit non-goals.
+
 ## Related projects
 
 - **[pulseboard-desktop](https://github.com/Cramraika/pulseboard-desktop)** — Windows companion. While Pulseboard catches *when* and *who* sees degradation from phones, pulseboard-desktop runs MTR / tshark / iperf3 / speedtest from a laptop to find *why* and *where on the ISP path*. Use them together for the complete picture.
