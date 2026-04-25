@@ -11,8 +11,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Stub placeholder — real engine lands in v1.1 alongside :core VoIP diagnostic work.
-        versionCode = 1
-        versionName = "0.1.0-stub"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

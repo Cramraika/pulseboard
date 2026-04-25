@@ -1,36 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp"
-    android:background="@color/neutral_950">
+    android:background="@color/neutral_950"
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/stub_title"
-        android:textSize="36sp"
-        android:textStyle="bold"
-        android:textColor="@color/brand_primary"
-        android:layout_marginBottom="12dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/stub_subtitle"
-        android:textSize="16sp"
-        android:textColor="@color/neutral_100"
-        android:layout_marginBottom="32dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/stub_body"
-        android:textSize="14sp"
-        android:textColor="@color/neutral_100"
+        android:orientation="vertical"
         android:gravity="center"
-        android:lineSpacingMultiplier="1.4" />
+        android:padding="32dp">
 
-</LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stub_title"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/brand_primary"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stub_subtitle"
+            android:textSize="16sp"
+            android:textColor="@color/neutral_100"
+            android:layout_marginBottom="32dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stub_body"
+            android:textSize="14sp"
+            android:textColor="@color/neutral_100"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4"
+            android:layout_marginBottom="48dp" />
+
+        <!-- Desktop companion card. Tappable; launches GitHub URL in browser. -->
+        <LinearLayout
+            android:id="@+id/companionCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:background="@color/neutral_900"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/companion_title"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/brand_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/companion_body"
+                android:textSize="14sp"
+                android:textColor="@color/neutral_100"
+                android:lineSpacingMultiplier="1.35"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/companion_cta"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/brand_primary" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

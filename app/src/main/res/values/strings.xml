@@ -3,4 +3,10 @@
     <string name="stub_title">Pulseboard</string>
     <string name="stub_subtitle">Network health vitals for distributed teams</string>
     <string name="stub_body">Shared engine: ready.\nPublic app build: v1.1 (coming soon).</string>
+
+    <!-- Desktop companion card -->
+    <string name="companion_title">Need deeper diagnostics?</string>
+    <string name="companion_body">Pair Pulseboard with pulseboard-desktop on Windows to find <i>why</i> and <i>where on the ISP path</i> calls degrade — runs MTR, tshark, iperf3, and speedtest side-by-side for hours.</string>
+    <string name="companion_cta">Open pulseboard-desktop on GitHub</string>
+    <string name="companion_url" translatable="false">https://github.com/Cramraika/pulseboard-desktop</string>
 </resources>

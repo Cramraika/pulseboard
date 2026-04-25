@@ -1,0 +1,1 @@
+Adds a tappable card surfacing the desktop companion (pulseboard-desktop on Windows). Stub Activity unchanged otherwise. Full v1.1 service wiring still in progress.
