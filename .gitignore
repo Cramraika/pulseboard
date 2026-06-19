@@ -74,3 +74,9 @@ keystore.properties
 # Freshly baked APKs (go to GitHub Releases, not git)
 NetworkMonitorCN-*.apk
 __pycache__/
+.gitnexus
+
+# CC tooling output dirs / configs
+.gitnexusignore
+.serena/
+graphify-out/
