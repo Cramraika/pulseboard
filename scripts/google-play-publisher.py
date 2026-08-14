@@ -6,9 +6,13 @@ Wraps the official Android Publisher REST API (androidpublisher v3) with a CLI
 that covers the common-case release flow: list apps, upload APK/AAB, create a
 track release, update listing copy, fetch reviews.
 
-Auth: Service Account JSON (generated in Google Cloud Console, granted access
-in Play Console under Users & Permissions). Path to the JSON lives in env var
-`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (default: ~/.config/google-play/sa.json).
+Auth: short-lived impersonation of vagarylife@vagarylife.iam.gserviceaccount.com
+(since the 2026-08-14 GCP WIF migration — no downloadable key exists anymore).
+Your own gcloud identity needs roles/iam.serviceAccountTokenCreator on that SA.
+Legacy fallback: if a real key file exists at `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
+(default: ~/.config/google-play/sa.json), it's used instead — see
+_build_credentials(). The `members` command (domain-wide delegation) always
+needs a real key; impersonation cannot do DWD.
 
 Install deps (one time):
     python3 -m pip install --user google-auth google-api-python-client
@@ -33,7 +37,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
-    from google.oauth2 import service_account
+    from google.oauth2 import service_account, credentials as oauth2_credentials
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     from googleapiclient.http import MediaFileUpload
@@ -47,6 +51,56 @@ except ImportError as e:
 
 SCOPES = ["https://www.googleapis.com/auth/androidpublisher"]
 DEFAULT_SA_PATH = Path.home() / ".config" / "google-play" / "sa.json"
+
+# Publisher SA is key-less since the 2026-08-14 GCP WIF migration (OW
+# gcp-wif-migration): the long-lived key at DEFAULT_SA_PATH was deleted.
+# Auth now runs via short-lived impersonation of this SA — the operator's own
+# gcloud identity needs roles/iam.serviceAccountTokenCreator on it (already
+# granted for chinu.ramraika@gmail.com). If GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+# (or DEFAULT_SA_PATH) still points at a real key file, that legacy path is
+# used instead — this keeps the script working for anyone who re-mints a key.
+IMPERSONATE_SA = os.environ.get(
+    "GOOGLE_PLAY_IMPERSONATE_SA", "vagarylife@vagarylife.iam.gserviceaccount.com"
+)
+
+
+def _build_credentials(scopes: list[str]):
+    """Return credentials scoped to `scopes` — impersonation-first, key-file fallback.
+
+    Deliberately does NOT use google.auth.default() (ADC): this Mac's ADC file
+    is itself an impersonated-service-account credential for a different SA
+    (site-discoverability-orch, unrelated to Play publishing) — chaining a
+    second impersonation through it fails (that SA has no rights to impersonate
+    this one). Instead this shells out to the gcloud CLI's own active-user
+    token as the impersonation source, then calls IAM Credentials
+    generateAccessToken directly for a properly-scoped token (gcloud's
+    `print-access-token` cannot take custom scopes for impersonation).
+    """
+    import subprocess
+    import requests as _requests
+
+    sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
+    if sa_path.exists():
+        return service_account.Credentials.from_service_account_file(str(sa_path), scopes=scopes)
+
+    # The Mac's default active gcloud account is the org-admin identity, which
+    # has no project-level IAM on `vagarylife` — the project-owner account
+    # (granted serviceAccountTokenCreator on IMPERSONATE_SA) must be named
+    # explicitly. Override via $GOOGLE_PLAY_GCLOUD_ACCOUNT if that changes.
+    gcloud_account = os.environ.get("GOOGLE_PLAY_GCLOUD_ACCOUNT", "chinu.ramraika@gmail.com")
+    source_token = subprocess.run(
+        ["gcloud", "auth", "print-access-token", f"--account={gcloud_account}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    resp = _requests.post(
+        f"https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"
+        f"{IMPERSONATE_SA}:generateAccessToken",
+        headers={"Authorization": f"Bearer {source_token}"},
+        json={"scope": scopes, "lifetime": "300s"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return oauth2_credentials.Credentials(token=resp.json()["accessToken"])
 
 # Firebase App Distribution uses cloud-platform scope on the same SA.
 # Firebase config per app is declared via env vars (FIREBASE_APP_ID,
@@ -64,16 +118,7 @@ ADMIN_DIRECTORY_SCOPES = [
 
 
 def build_service() -> Any:
-    sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
-    if not sa_path.exists():
-        sys.stderr.write(
-            f"Service account JSON not found at {sa_path}.\n"
-            "Set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON or place sa.json at that path.\n"
-        )
-        sys.exit(2)
-    creds = service_account.Credentials.from_service_account_file(
-        str(sa_path), scopes=SCOPES
-    )
+    creds = _build_credentials(SCOPES)
     return build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
 
 
@@ -392,6 +437,15 @@ def _read_if_exists(path: Path) -> Optional[str]:
 def _build_directory_service(admin_email: str) -> Any:
     """Build an Admin SDK Directory service impersonating the given admin.
 
+    NOT COVERED by the 2026-08-14 WIF/impersonation migration: `.with_subject()`
+    domain-wide delegation requires the SA to self-sign a JWT with its own
+    private key — IAM serviceAccountTokenCreator impersonation has no
+    equivalent (there is no key left to sign with). This command needs either
+    a re-minted key placed at GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (scoped down to
+    only this use), or a redesign that drops DWD in favor of a
+    domain-delegated OAuth app. Left as-is rather than silently forced onto a
+    mechanism that cannot support it — see gcp-wif-migration report.
+
     Prerequisites (all one-time per Workspace domain):
       1. Admin SDK API enabled in GCP project (already done 2026-04-22 for vagarylife)
       2. Service account has domain-wide delegation in admin.google.com
@@ -401,6 +455,12 @@ def _build_directory_service(admin_email: str) -> Any:
          the SA impersonates
     """
     sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
+    if not sa_path.exists():
+        sys.stderr.write(
+            f"members command needs a real key at {sa_path} (domain-wide delegation\n"
+            "cannot be done via impersonation — see _build_directory_service docstring).\n"
+        )
+        sys.exit(2)
     creds = service_account.Credentials.from_service_account_file(
         str(sa_path), scopes=ADMIN_DIRECTORY_SCOPES,
     ).with_subject(admin_email)
@@ -410,10 +470,7 @@ def _build_directory_service(admin_email: str) -> Any:
 def _firebase_token() -> str:
     """Get a bearer token for Firebase App Distribution REST calls."""
     import google.auth.transport.requests as _rq
-    sa_path = Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", DEFAULT_SA_PATH))
-    creds = service_account.Credentials.from_service_account_file(
-        str(sa_path), scopes=FIREBASE_SCOPES,
-    )
+    creds = _build_credentials(FIREBASE_SCOPES)
     creds.refresh(_rq.Request())
     return creds.token
 
