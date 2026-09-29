@@ -12,7 +12,7 @@ import java.net.InetAddress
  * but many enterprise firewalls and carrier middleboxes deprioritize ICMP
  * relative to UDP. A UDP DNS probe takes a packet path closer to RTP and
  * diverges from ICMP under exactly the conditions we care about — middlebox
- * congestion, NAT session pressure, CoS deprioritization. When ICMP-Smartflo
+ * congestion, NAT session pressure, CoS deprioritization. When ICMP to the primary target
  * looks clean but UDP-DNS shows loss/jitter, the issue is UDP-path-specific.
  *
  * The resolver (default `1.1.1.1`) always returns a <100 byte UDP response

@@ -43,4 +43,35 @@ class GatewayResolverTest {
         )
         assertEquals("10.0.0.1", pickDefaultIPv4Gateway(entries))
     }
+
+    // --- v1.2 cache-last-good helper ---
+
+    @Test
+    fun `resolveGatewayWithCache returns LIVE when live value present`() {
+        val result = resolveGatewayWithCache(live = "192.168.1.1", cached = "192.168.1.1")
+        assertEquals("192.168.1.1", result.ip)
+        assertEquals(GatewaySource.LIVE, result.source)
+    }
+
+    @Test
+    fun `resolveGatewayWithCache returns LIVE even when cache is stale`() {
+        // Fresh live value wins over cache, regardless of whether they agree.
+        val result = resolveGatewayWithCache(live = "10.0.0.1", cached = "192.168.1.1")
+        assertEquals("10.0.0.1", result.ip)
+        assertEquals(GatewaySource.LIVE, result.source)
+    }
+
+    @Test
+    fun `resolveGatewayWithCache falls back to CACHED when live is null`() {
+        val result = resolveGatewayWithCache(live = null, cached = "192.168.1.1")
+        assertEquals("192.168.1.1", result.ip)
+        assertEquals(GatewaySource.CACHED, result.source)
+    }
+
+    @Test
+    fun `resolveGatewayWithCache returns NULL source when both are null`() {
+        val result = resolveGatewayWithCache(live = null, cached = null)
+        assertNull(result.ip)
+        assertEquals(GatewaySource.NULL, result.source)
+    }
 }
