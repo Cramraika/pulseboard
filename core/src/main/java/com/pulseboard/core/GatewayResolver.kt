@@ -14,12 +14,24 @@ import java.net.Inet4Address
 /** Handle for un-registering a `registerOnChange` subscription. */
 typealias UnregisterHandle = () -> Unit
 
+/** How a gateway IP was obtained. Emitted as the `gateway_resolver_source` Sheet column. */
+enum class GatewaySource { LIVE, CACHED, NULL }
+
+/** (ip, source) pair — `ip==null` iff source == NULL. */
+data class GatewayLookup(val ip: String?, val source: GatewaySource)
+
 /**
  * Resolves the active network's IPv4 default gateway and watches for changes.
  *
+ * v1.2: also caches the last non-null live value so transient null moments
+ * (network state flap, MIUI screen-off) don't produce empty `gateway_ip` rows.
+ * The cache is cleared only when registerOnChange observes a fresh null
+ * via the change callback (genuine disconnect) — a bare poll returning null
+ * falls back to the cache.
+ *
  * Two entry points:
- * - [currentGateway] is cheap, polls on demand. Returns null if no IPv4 default
- *   route exists (e.g. IPv6-only network, CGN mobile carrier, offline).
+ * - [currentGatewayWithSource] returns (ip, "live"/"cached"/"null") — new in v1.2.
+ * - [currentGateway] preserves the v1.1 signature (ip-only) for back-compat.
  * - [registerOnChange] registers a [ConnectivityManager.NetworkCallback] on
  *   `onLinkPropertiesChanged` + `onCapabilitiesChanged`, debounced 1s so rapid
  *   AP-roam events collapse into a single callback invocation.
@@ -28,7 +40,25 @@ class GatewayResolver(private val connectivityManager: ConnectivityManager) {
 
     private val tag = "PingCore.Gateway"
 
-    fun currentGateway(): String? {
+    @Volatile private var lastGoodGateway: String? = null
+
+    fun currentGatewayWithSource(): GatewayLookup {
+        val live = queryLive()
+        return if (live != null) {
+            lastGoodGateway = live
+            GatewayLookup(live, GatewaySource.LIVE)
+        } else {
+            val cached = lastGoodGateway
+            if (cached != null) GatewayLookup(cached, GatewaySource.CACHED)
+            else GatewayLookup(null, GatewaySource.NULL)
+        }
+    }
+
+    /** Back-compat shim — returns only the IP, falling back to cache. */
+    fun currentGateway(): String? = currentGatewayWithSource().ip
+
+    /** Forces a live query, ignoring the cache. Used internally and by tests. */
+    private fun queryLive(): String? {
         val network = connectivityManager.activeNetwork ?: return null
         val linkProps = connectivityManager.getLinkProperties(network) ?: return null
         val entries = linkProps.routes.map { routeInfoToEntry(it) }
@@ -48,11 +78,21 @@ class GatewayResolver(private val connectivityManager: ConnectivityManager) {
                 scheduleDebounced()
             }
 
+            override fun onLost(network: Network) {
+                // Genuine disconnect: clear the cache so a real null reaches the
+                // next flush. Transient null-polls will now return (null, NULL)
+                // rather than a stale cached value from minutes ago.
+                lastGoodGateway = null
+                scheduleDebounced()
+            }
+
             private fun scheduleDebounced() {
                 pending?.let { handler.removeCallbacks(it) }
                 val r = Runnable {
                     try {
-                        callback(currentGateway())
+                        val live = queryLive()
+                        if (live != null) lastGoodGateway = live
+                        callback(live)
                     } catch (e: Exception) {
                         Log.w(tag, "registerOnChange callback threw", e)
                     }
@@ -108,3 +148,14 @@ internal data class RouteEntry(
 
 internal fun pickDefaultIPv4Gateway(entries: List<RouteEntry>): String? =
     entries.firstOrNull { it.isDefault && it.gatewayHost != null }?.gatewayHost
+
+/**
+ * Pure helper for the (ip, source) decision given a live-query outcome and a
+ * cached value. Extracted so tests can exercise the cache logic without a
+ * full ConnectivityManager mock.
+ */
+internal fun resolveGatewayWithCache(live: String?, cached: String?): GatewayLookup {
+    if (live != null) return GatewayLookup(live, GatewaySource.LIVE)
+    if (cached != null) return GatewayLookup(cached, GatewaySource.CACHED)
+    return GatewayLookup(null, GatewaySource.NULL)
+}

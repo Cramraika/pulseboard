@@ -26,7 +26,22 @@ data class DeviceAggregates(
     val primaryLinkSpeedMbps: Int?,
     val currentBssid: String?,
     val currentRssi: Int?,
-    val vpnActive: Boolean
+    val vpnActive: Boolean,
+    // v1.5.5: BSSID transitions after collapsing to 5-octet physical-AP prefix.
+    // Counts only real-MAC-to-different-real-MAC transitions; sentinels / nulls
+    // are skipped so a permission blip doesn't inflate the physical-roam count.
+    val physicalApChangesCount: Int = 0,
+    // v1.5.6: dominant macRandomization across the window's snapshots. "none"
+    // is the only safe value for a MAC-whitelisted SSID; any other value
+    // (especially "persistent") on such an SSID is the smoking gun for
+    // silent VoIP failure.
+    val dominantMacRandomization: String = "unsupported",
+    // v1.5.6: was the device on Wi-Fi WITHOUT a DHCP-assigned IP for any
+    // sample in the window? OBSERVABLE symptom of MAC-whitelist DHCP-block.
+    // Per-snapshot value is bool? (null on cellular); aggregate = "true if
+    // any wifi snapshot reported false". Cleaner ASM filter:
+    //   WHERE wifi_no_ip_observed = true AND primary_ssid = '<whitelisted SSID>'
+    val wifiNoIpObserved: Boolean? = null
 ) {
     companion object {
         val EMPTY = DeviceAggregates(
@@ -37,7 +52,10 @@ data class DeviceAggregates(
             primaryBssid = null, primarySsid = null,
             primaryFrequencyMhz = null, primaryLinkSpeedMbps = null,
             currentBssid = null, currentRssi = null,
-            vpnActive = false
+            vpnActive = false,
+            physicalApChangesCount = 0,
+            dominantMacRandomization = "unsupported",
+            wifiNoIpObserved = null
         )
     }
 }

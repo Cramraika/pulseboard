@@ -1,0 +1,53 @@
+# Pulseboard CI: runs on every push to main and every PR.
+# Gates the :core engine (unit tests) and a debug compile of :app. Release
+# builds need the off-repo keystore and are handled by release.yml on tags.
+name: android-ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Engine unit tests (:core:testDebugUnitTest)
+        run: ./gradlew :core:testDebugUnitTest --console=plain --stacktrace
+
+      - name: Compile app (:app:compileDebugKotlin)
+        run: ./gradlew :app:compileDebugKotlin --console=plain --stacktrace
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: core/build/reports/tests/
+          retention-days: 7

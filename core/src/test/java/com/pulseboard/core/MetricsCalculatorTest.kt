@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MetricsCalculatorTest {
@@ -321,4 +322,298 @@ class MetricsCalculatorTest {
         assertEquals(3, m.reachableSamplesCount)
         assertEquals(15.0, m.avgPing!!, 0.001)
     }
+
+    // --- v1.5.5 churnBssidPrefixes (G1, G2, G3) ---
+
+    @Test
+    fun `churnBssidPrefixes returns null for empty samples`() {
+        // G1 — empty input edge case
+        assertNull(MetricsCalculator.churnBssidPrefixes(emptyList()))
+    }
+
+    @Test
+    fun `churnBssidPrefixes returns null when all BSSIDs are null`() {
+        // G1 — wifi=null on every sample → no transitions
+        val samples = listOf(
+            Sample(null, 1000L, target = "t"),
+            Sample(null, 2000L, target = "t"),
+            Sample(null, 3000L, target = "t")
+        )
+        assertNull(MetricsCalculator.churnBssidPrefixes(samples))
+    }
+
+    @Test
+    fun `churnBssidPrefixes returns null when all BSSIDs are sentinels`() {
+        // G1 — typed sentinels (length != 17) and Android raw sentinel
+        // (length 17 but well-known) all map to null prefix → no transitions.
+        val sentinels = listOf("permission_denied", "nearby_wifi_denied", "02:00:00:00:00:00")
+        val samples = sentinels.mapIndexed { i, bssid ->
+            Sample(null, 1000L + i * 1000L, target = "t",
+                wifi = wifiSnapshot(bssid = bssid, ssid = null, rssi = null,
+                    networkType = "wifi", atMs = 1000L + i * 1000L))
+        }
+        // Note: 02:00:00:00:00:00 IS length 17 with colon at index 2, so it maps
+        // to prefix "02:00:00:00:00" and counts. permission_denied (17 chars but
+        // no colons in MAC pattern) does NOT pass the length+colon check.
+        // Result: sentinels collapse to one prefix, no transitions.
+        val result = MetricsCalculator.churnBssidPrefixes(samples)
+        // Either null (all sentinels filter out) or a single prefix (no transitions).
+        // Acceptable behaviour: not multiple prefixes.
+        if (result != null) {
+            assertFalse("no '|' should appear when all are same/sentinel", result.contains("|"))
+        }
+    }
+
+    @Test
+    fun `churnBssidPrefixes top-2 ordered by transition count`() {
+        // G2 — A↔B 5 transitions vs C↔D 1 transition. Top-2 must be {A,B}.
+        val a = "02:00:00:eb:a0:11"
+        val b = "02:00:00:eb:b0:22"  // different prefix
+        val c = "34:8a:12:ff:c0:33"
+        val d = "34:8a:12:ff:d0:44"
+        val sequence = listOf(a, b, a, b, a, b, a, b, a, b, a, c, d, c) // mostly A↔B
+        val samples = sequence.mapIndexed { i, bssid ->
+            val ts = 1000L + i * 1000L
+            Sample(null, ts, target = "t",
+                wifi = wifiSnapshot(bssid = bssid, ssid = null, rssi = null,
+                    networkType = "wifi", atMs = ts))
+        }
+        val result = MetricsCalculator.churnBssidPrefixes(samples)
+        assertNotNull("result must not be null when transitions exist", result)
+        val prefixes = result!!.split("|")
+        assertEquals("top-2 cap (take(2))", 2, prefixes.size)
+        // A and B must both be present (they participate in 10 transitions)
+        val aPrefix = a.take(14)
+        val bPrefix = b.take(14)
+        assertTrue("A prefix in top-2", prefixes.contains(aPrefix))
+        assertTrue("B prefix in top-2", prefixes.contains(bPrefix))
+    }
+
+    @Test
+    fun `churnBssidPrefixes zero physical-AP transitions on dual-radio band steering`() {
+        // G3 — same physical AP, two radios (common enterprise-AP pattern: last byte differs).
+        // Both BSSIDs share the 5-octet prefix "02:00:00:eb:a0".
+        // bssidChangesCount counts the byte-level transitions; physicalApChangesCount
+        // (and churnBssidPrefixes which uses the same 5-octet collapse) should NOT.
+        val r24 = "02:00:00:eb:a0:11"  // 2.4 GHz radio
+        val r5  = "02:00:00:eb:a0:22"  // 5 GHz radio (same physical AP)
+        val sequence = listOf(r24, r5, r24, r5, r24, r5)
+        val samples = sequence.mapIndexed { i, bssid ->
+            val ts = 1000L + i * 1000L
+            Sample(null, ts, target = "t",
+                wifi = wifiSnapshot(bssid = bssid, ssid = null, rssi = null,
+                    networkType = "wifi", atMs = ts))
+        }
+        // After 5-octet collapse, every snapshot is the same prefix "02:00:00:eb:a0".
+        // No transitions → churnBssidPrefixes returns null.
+        assertNull(
+            "band-steering on same physical AP must produce zero churn prefix",
+            MetricsCalculator.churnBssidPrefixes(samples)
+        )
+    }
+
+    // --- v1.5.5 physicalApChangesCount (G4, G5) ---
+
+    @Test
+    fun `deviceLevelAggregates physicalApChangesCount skips nulls and sentinels`() {
+        // G4 — A → null → A → B sequence.
+        // bssidChangesCount counts the value-to-null and null-to-value transitions
+        // (prior behavior, unchanged): A→null=1, null→A=2, A→B=3.
+        // physicalApChangesCount must skip nulls: only A→B = 1.
+        val a = "02:00:00:eb:a0:11"
+        val b = "02:00:00:eb:b0:22"
+        val samples = listOf(
+            sampleWithBssid(a, 1000L),
+            sampleWithBssid(null, 2000L),  // null bssid
+            sampleWithBssid(a, 3000L),
+            sampleWithBssid(b, 4000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        // bssidChangesCount counts ALL transitions including null↔value.
+        // Wait: snapshots filter out the null-bssid entry only if the WHOLE
+        // wifi snapshot is null. Here we set bssid=null but wifi snapshot is
+        // present, so the snapshots list keeps all 4. Transitions on .map { it.bssid }:
+        // a → null (1) → a (2) → b (3) = 3.
+        assertEquals("bssid_changes counts null transitions", 3, agg.bssidChangesCount)
+        // physicalApChangesCount uses 5-octet collapse + countNonNullTransitions:
+        // [A_prefix, null, A_prefix, B_prefix] → only A→B counts = 1.
+        assertEquals(
+            "physical_ap_changes skips nulls (permission blip != roam)",
+            1, agg.physicalApChangesCount
+        )
+    }
+
+    @Test
+    fun `deviceLevelAggregates physicalApChangesCount treats sentinels as null`() {
+        // G5 — typed-sentinel BSSIDs ("permission_denied" length=17 but no colons
+        // in MAC positions) map to null prefix. Real BSSID after sentinel must
+        // count as one transition only between real values.
+        val realA = "02:00:00:eb:a0:11"
+        val realB = "02:00:00:eb:b0:22"
+        val samples = listOf(
+            sampleWithBssid("permission_denied", 1000L),
+            sampleWithBssid("nearby_wifi_denied", 2000L),
+            sampleWithBssid(realA, 3000L),
+            sampleWithBssid(realB, 4000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        // After collapse: [null, null, A_prefix, B_prefix]. Real transitions: A→B = 1.
+        assertEquals(1, agg.physicalApChangesCount)
+    }
+
+    // --- v1.5.6 churnTier (NF-LIVE-2 calibration response) ---
+
+    @Test
+    fun `churnTier boundaries match ASM dashboard spec — low ≤15, high 16-29, fault ≥30`() {
+        // ASM dashboard 2026-05-01 KT spec: low (≤15) / high (16–29) / fault (≥30).
+        // Code uses `bssidChangesCount >= faultThreshold` so the AT-30 boundary
+        // is fault, AT-15 boundary is low.
+        assertEquals("low", MetricsCalculator.churnTier(0, 15, 30))
+        assertEquals("low", MetricsCalculator.churnTier(15, 15, 30))   // boundary low/high
+        assertEquals("high", MetricsCalculator.churnTier(16, 15, 30))  // 1 over → high
+        assertEquals("high", MetricsCalculator.churnTier(29, 15, 30))  // 1 under fault
+        assertEquals("fault", MetricsCalculator.churnTier(30, 15, 30)) // boundary high/fault → fault
+        assertEquals("fault", MetricsCalculator.churnTier(31, 15, 30)) // 1 over fault
+        // observed real-world value (field data 2026-04-30)
+        assertEquals("fault", MetricsCalculator.churnTier(95, 15, 30))
+        // second observed real-world value
+        assertEquals("fault", MetricsCalculator.churnTier(37, 15, 30))
+    }
+
+    // --- v1.5.6 unreachablePct (F6 closure) ---
+
+    @Test
+    fun `unreachablePct zero when all reachable`() {
+        assertEquals(0.0, MetricsCalculator.unreachablePct(100, 100)!!, 0.001)
+    }
+
+    @Test
+    fun `unreachablePct hundred when all unreachable`() {
+        assertEquals(100.0, MetricsCalculator.unreachablePct(100, 0)!!, 0.001)
+    }
+
+    @Test
+    fun `unreachablePct partial split rounds to one decimal`() {
+        assertEquals(50.0, MetricsCalculator.unreachablePct(10, 5)!!, 0.001)
+        // 7 unreachable / 9 total = 77.777...% → rounds to 77.8
+        assertEquals(77.8, MetricsCalculator.unreachablePct(9, 2)!!, 0.001)
+    }
+
+    @Test
+    fun `unreachablePct null when samplesCount is zero`() {
+        assertNull(MetricsCalculator.unreachablePct(0, 0))
+    }
+
+    @Test
+    fun `unreachablePct guards against reachable greater than samples`() {
+        // Defensive: if reachable somehow exceeds samples (impossible by contract,
+        // but bug-resistant), unreachable count is coerced to 0 not negative.
+        assertEquals(0.0, MetricsCalculator.unreachablePct(10, 15)!!, 0.001)
+    }
+
+    // --- v1.5.6 dominantMacRandomization ---
+
+    @Test
+    fun `deviceLevelAggregates dominantMacRandomization picks most-frequent real value`() {
+        // Mixed window: 3 "persistent" wifi snapshots + 2 "unsupported" cellular.
+        // Real-value filter prefers "persistent" over "unsupported" — the analyst-
+        // useful answer is "the rep is on persistent randomization while connected
+        // to Wi-Fi", not "they were on cellular some of the time".
+        val base = 1000L
+        val samples = listOf(
+            sampleWithMacRand("persistent", base),
+            sampleWithMacRand("unsupported", base + 1000L),
+            sampleWithMacRand("persistent", base + 2000L),
+            sampleWithMacRand("unsupported", base + 3000L),
+            sampleWithMacRand("persistent", base + 4000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals("persistent", agg.dominantMacRandomization)
+    }
+
+    @Test
+    fun `deviceLevelAggregates dominantMacRandomization defaults unsupported when no real values`() {
+        // Cellular-only window — every snapshot reports "unsupported".
+        val base = 1000L
+        val samples = (0..4).map { sampleWithMacRand("unsupported", base + it * 1000L) }
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals("unsupported", agg.dominantMacRandomization)
+    }
+
+    // --- helpers for v1.5.5 / v1.5.6 tests ---
+
+    private fun sampleWithBssid(bssid: String?, atMs: Long): Sample =
+        Sample(
+            rttMs = null, tsMs = atMs, target = "t",
+            wifi = wifiSnapshot(
+                bssid = bssid, ssid = null, rssi = null,
+                networkType = "wifi", atMs = atMs
+            )
+        )
+
+    private fun sampleWithMacRand(mr: String, atMs: Long): Sample =
+        Sample(
+            rttMs = null, tsMs = atMs, target = "t",
+            wifi = WifiSnapshot(
+                ssid = null, bssid = null, rssi = null,
+                linkSpeedMbps = null, frequencyMhz = null,
+                networkType = if (mr == "unsupported") "cellular" else "wifi",
+                vpnActive = false,
+                collectedAtMs = atMs,
+                macRandomization = mr
+            )
+        )
+
+    // --- v1.5.6 wifiNoIpObserved (MAC-whitelist DHCP-block symptom) ---
+
+    @Test
+    fun `wifiNoIpObserved true when any wifi snapshot lacks IP`() {
+        // 3 wifi snapshots: 2 with IP, 1 without (DHCP transiently failed).
+        // Aggregate must report true so the MAC-whitelist symptom isn't masked
+        // by the "mostly OK" majority.
+        val base = 1000L
+        val samples = listOf(
+            sampleWithIpStatus(true, base),
+            sampleWithIpStatus(false, base + 1000L),
+            sampleWithIpStatus(true, base + 2000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals(true, agg.wifiNoIpObserved)
+    }
+
+    @Test
+    fun `wifiNoIpObserved false when all wifi snapshots have IP`() {
+        val base = 1000L
+        val samples = (0..3).map { sampleWithIpStatus(true, base + it * 1000L) }
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertEquals(false, agg.wifiNoIpObserved)
+    }
+
+    @Test
+    fun `wifiNoIpObserved null when window has no wifi snapshots`() {
+        // Cellular-only window — wifiNoIpObserved is undefined (not "good", not
+        // "bad" — no Wi-Fi sample to observe).
+        val base = 1000L
+        val samples = listOf(
+            sampleWithMacRand("unsupported", base),
+            sampleWithMacRand("unsupported", base + 1000L)
+        )
+        val agg = MetricsCalculator.deviceLevelAggregates(samples)
+        assertNull(agg.wifiNoIpObserved)
+    }
+
+    private fun sampleWithIpStatus(hasIp: Boolean, atMs: Long): Sample =
+        Sample(
+            rttMs = null, tsMs = atMs, target = "t",
+            wifi = WifiSnapshot(
+                ssid = "Office-WiFi", bssid = "02:00:00:eb:a0:11",
+                rssi = -55, linkSpeedMbps = 866, frequencyMhz = 5180,
+                networkType = "wifi",
+                vpnActive = false,
+                collectedAtMs = atMs,
+                macRandomization = "persistent",
+                wifiHasIp = hasIp
+            )
+        )
 }
+

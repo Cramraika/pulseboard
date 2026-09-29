@@ -125,6 +125,17 @@ object MetricsCalculator {
         val bssidChanges = countTransitions(snapshots.map { it.bssid })
         val ssidChanges = countTransitions(snapshots.map { it.ssid })
 
+        // Physical AP changes: collapse BSSID to 5-octet prefix (OUI+slot, 14 chars),
+        // count transitions between different non-null prefixes. Skips sentinels and
+        // permission-blip nulls so a temporary null doesn't count as an AP change.
+        // Only real MAC addresses (length 17, colon at index 2) get collapsed;
+        // typed sentinels ("permission_denied", "02:00:00:00:00:00", etc.) map to null.
+        val physicalPrefixes = snapshots.map { snap ->
+            val b = snap.bssid
+            if (b != null && b.length == 17 && b[2] == ':') b.take(14) else null
+        }
+        val physicalApChanges = countNonNullTransitions(physicalPrefixes)
+
         val rssiValues = snapshots.mapNotNull { it.rssi }
         val rssiMin = rssiValues.minOrNull()
         val rssiMax = rssiValues.maxOrNull()
@@ -137,6 +148,31 @@ object MetricsCalculator {
         val vpnDominant = snapshots.count { it.vpnActive } > snapshots.size / 2
 
         val current = snapshots.lastOrNull()
+
+        // v1.5.6: dominant MAC randomization across the window. Filter out
+        // "unsupported" (cellular / pre-SDK 31) when computing the dominant
+        // so the "real" Wi-Fi reading wins over no-Wi-Fi noise in mixed
+        // windows. If every snapshot was unsupported, fall through to it
+        // explicitly.
+        val macRandValues = snapshots.mapNotNull { it.macRandomization.ifBlank { null } }
+        val macRandDominant = run {
+            val realValues = macRandValues.filter { it != "unsupported" }
+            if (realValues.isNotEmpty()) {
+                realValues.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+                    ?: "unsupported"
+            } else if (macRandValues.isNotEmpty()) "unsupported" else "unsupported"
+        }
+
+        // v1.5.6: did any Wi-Fi snapshot report "associated but no IP"? That's
+        // the MAC-whitelist DHCP-block symptom. Aggregate: true iff at least one
+        // wifi snapshot had wifiHasIp == false. Null if no Wi-Fi snapshots in
+        // the window (all cellular).
+        val wifiSnapshots = snapshots.filter { it.networkType == "wifi" }
+        val wifiNoIpObserved: Boolean? = if (wifiSnapshots.isEmpty()) {
+            null
+        } else {
+            wifiSnapshots.any { it.wifiHasIp == false }
+        }
 
         return DeviceAggregates(
             bssidChangesCount = bssidChanges,
@@ -151,8 +187,76 @@ object MetricsCalculator {
             primaryLinkSpeedMbps = dominant(snapshots.map { it.linkSpeedMbps }),
             currentBssid = current?.bssid,
             currentRssi = current?.rssi,
-            vpnActive = vpnDominant
+            vpnActive = vpnDominant,
+            physicalApChangesCount = physicalApChanges,
+            dominantMacRandomization = macRandDominant,
+            wifiNoIpObserved = wifiNoIpObserved
         )
+    }
+
+    /**
+     * v1.5.6: client-side derivation of `unreachable_pct` so analysts have
+     * an explicit denominator without recomputing from samples_count vs
+     * reachable_samples_count. Returns null when samples=0 (no data, no
+     * meaningful percentage); otherwise (samples - reachable) / samples * 100.
+     */
+    fun unreachablePct(samplesCount: Int, reachableSamplesCount: Int): Double? {
+        if (samplesCount <= 0) return null
+        val unreachable = (samplesCount - reachableSamplesCount).coerceAtLeast(0)
+        return Math.round(unreachable.toDouble() / samplesCount.toDouble() * 1000.0) / 10.0
+    }
+
+    /**
+     * v1.5.6: three-tier churn classification driven by Constants thresholds.
+     * Returns "low" / "high" / "fault" based on the bssidChangesCount value.
+     * Threshold values are passed in so :core stays decoupled from the :app
+     * Constants object.
+     *
+     * Boundary semantics (aligned with ASM dashboard expectations 2026-05-01 KT):
+     *   bssidChangesCount ≤ highThreshold  → "low"   (e.g. ≤ 15)
+     *   bssidChangesCount in (high..fault) → "high"  (e.g. 16–29)
+     *   bssidChangesCount ≥ faultThreshold → "fault" (e.g. ≥ 30)
+     *
+     * Note: the boundary AT faultThreshold is "fault", AT highThreshold is "low".
+     * This matches the ASM dashboard's `low (≤15) / high (16–29) / fault (≥30)`
+     * spec exactly.
+     */
+    fun churnTier(bssidChangesCount: Int, highThreshold: Int, faultThreshold: Int): String =
+        when {
+            bssidChangesCount >= faultThreshold -> "fault"
+            bssidChangesCount > highThreshold -> "high"
+            else -> "low"
+        }
+
+    /**
+     * Returns the top-2 5-octet BSSID prefixes (pipe-separated) most involved in
+     * transitions within the window. Used by PingService when [highBssidChurn] is
+     * true to tell the backend "device is flapping between AP X and AP Y" vs "walking past
+     * 4 physical APs". Returns null if no non-null transitions exist.
+     *
+     * Each real MAC prefix participating in at least one transition is scored by how
+     * many transitions it was part of; the top-2 are returned. Sentinels and permission-
+     * blip nulls are ignored (same logic as physicalApChangesCount above).
+     */
+    fun churnBssidPrefixes(samples: List<Sample>): String? {
+        val prefixes = samples.sortedBy { it.tsMs }.mapNotNull { it.wifi }.map { snap ->
+            val b = snap.bssid
+            if (b != null && b.length == 17 && b[2] == ':') b.take(14) else null
+        }
+        val transitionScore = mutableMapOf<String, Int>()
+        var prev: String? = null
+        for (p in prefixes) {
+            if (p != null && prev != null && p != prev) {
+                transitionScore[prev] = (transitionScore[prev] ?: 0) + 1
+                transitionScore[p] = (transitionScore[p] ?: 0) + 1
+            }
+            if (p != null) prev = p
+        }
+        return transitionScore.entries
+            .sortedByDescending { it.value }
+            .take(2)
+            .joinToString("|") { it.key }
+            .takeIf { it.isNotEmpty() }
     }
 
     private fun <T> countTransitions(values: List<T?>): Int {
@@ -160,6 +264,20 @@ object MetricsCalculator {
         var count = 0
         for (i in 1 until values.size) {
             if (values[i] != values[i - 1]) count++
+        }
+        return count
+    }
+
+    // Counts transitions between consecutive non-null values; null entries are skipped.
+    // Use this when null represents a transient permission blip or sentinel, not a
+    // real state change (i.e., "no address" should not count as "moved APs").
+    private fun <T> countNonNullTransitions(values: List<T?>): Int {
+        var count = 0
+        var prev: T? = null
+        for (v in values) {
+            if (v == null) continue
+            if (prev != null && v != prev) count++
+            prev = v
         }
         return count
     }
